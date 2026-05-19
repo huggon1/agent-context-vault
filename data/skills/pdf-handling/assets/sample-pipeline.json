@@ -1,0 +1,9 @@
+{
+  "steps": [
+    "inspect_metadata",
+    "extract_text",
+    "validate_page_count",
+    "render_sample_pages"
+  ],
+  "output": "markdown"
+}
