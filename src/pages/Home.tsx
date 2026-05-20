@@ -40,8 +40,6 @@ export default function Home() {
         [
           asset.title,
           asset.description,
-          asset.usageLabel,
-          asset.usageDescription,
           asset.tags.join(" "),
           asset.scenarios.join(" "),
           asset.requires.join(" "),

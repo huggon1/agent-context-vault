@@ -3,7 +3,6 @@ import { Link, useParams } from "react-router-dom";
 import { CopyButton } from "../components/CopyButton";
 import { MarkdownRenderer } from "../components/MarkdownRenderer";
 import { ThemeToggle } from "../components/ThemeToggle";
-import { UsageBadge } from "../components/UsageBadge";
 import { Badge } from "../components/ui/badge";
 import { Button } from "../components/ui/button";
 import { Card } from "../components/ui/card";
@@ -59,7 +58,6 @@ export default function Detail() {
       <main className="mx-auto max-w-5xl px-4 py-8 sm:px-6 lg:px-8">
         <div className="border-b pb-7">
           <div className="mb-4 flex flex-wrap items-center gap-2">
-            <UsageBadge usage={asset.usage} label={asset.usageLabel} />
             <span className="text-sm text-muted-foreground">{asset.relativePath}</span>
           </div>
           <h1 className="text-3xl font-semibold tracking-normal">{asset.title}</h1>
@@ -77,18 +75,14 @@ export default function Detail() {
             <Card className="p-4">
               <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Actions</div>
               <div className="mt-3 space-y-2">
-                {asset.usage === "copy" ? (
-                  <CopyButton value={asset.content} label="Copy Content" copiedLabel="Content Copied" className="w-full" />
-                ) : null}
-                {asset.usage === "files" ? (
-                  <CopyButton
-                    value={asset.relativePath}
-                    label="Copy Entry Path"
-                    copiedLabel="Path Copied"
-                    className="w-full"
-                  />
-                ) : null}
-                {asset.usage === "command" && asset.install ? (
+                <CopyButton value={asset.content} label="Copy Content" copiedLabel="Content Copied" className="w-full" />
+                <CopyButton
+                  value={asset.relativePath}
+                  label="Copy Entry Path"
+                  copiedLabel="Path Copied"
+                  className="w-full"
+                />
+                {asset.install ? (
                   <CopyButton
                     value={asset.install}
                     label="Copy Install Command"
@@ -100,10 +94,7 @@ export default function Detail() {
             </Card>
 
             <Card className="p-4">
-              <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Usage</div>
-              <div className="mt-3 rounded-md border bg-muted/30 p-3 text-sm leading-6 text-muted-foreground">
-                {asset.usageDescription}
-              </div>
+              <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Details</div>
               {asset.scenarios.length > 0 ? (
                 <div className="mt-4">
                   <div className="mb-2 text-sm font-medium">Use cases</div>
@@ -158,7 +149,7 @@ export default function Detail() {
           </aside>
 
           <section className="min-w-0">
-            {asset.usage === "command" && asset.install ? (
+            {asset.install ? (
               <Card className="mb-6 overflow-hidden">
                 <div className="flex items-center justify-between gap-3 border-b px-4 py-3">
                   <div className="text-sm font-medium">Install</div>

@@ -2,9 +2,6 @@
 title: API Design Skill
 description: Design REST and GraphQL APIs with clear resources, versioning, errors, and compatibility rules.
 tags: [api, architecture, backend]
-usage: files
-usageLabel: Files
-usageDescription: Copy or reference this SKILL.md file in the target agent environment.
 scenarios:
   - Designing a new REST endpoint
   - Reviewing a GraphQL schema

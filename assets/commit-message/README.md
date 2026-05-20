@@ -2,9 +2,6 @@
 title: Conventional Commit Generator
 description: Generate a concise Conventional Commits message from a git diff.
 tags: [git, writing, release]
-usage: copy
-usageLabel: Copy
-usageDescription: Copy the prompt into an agent chat and provide the relevant git diff.
 scenarios:
   - Organizing a batch of local uncommitted changes
   - Normalizing history before merging a pull request

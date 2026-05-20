@@ -2,9 +2,6 @@
 title: Code Review Assistant
 description: Review a change for readability, bugs, performance, and security, then return prioritized feedback.
 tags: [coding, review, quality]
-usage: copy
-usageLabel: Copy
-usageDescription: Copy the review prompt into an agent chat with the target diff or files.
 scenarios:
   - Pre-PR self review
   - Mentoring junior engineers

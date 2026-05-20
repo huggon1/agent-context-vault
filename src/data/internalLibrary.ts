@@ -8,7 +8,6 @@ export function loadInternalLibrary(): Asset[] {
   return generatedLibrarySources
     .map((source) =>
       parseAssetMarkdown({
-        type: source.type,
         markdown: source.markdown,
         relativePath: source.relativePath,
         resourcePaths: "resourcePaths" in source ? [...source.resourcePaths] : [],

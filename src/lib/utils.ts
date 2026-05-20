@@ -35,8 +35,8 @@ export function firstMeaningfulLine(markdown: string) {
   return line ?? "No description available.";
 }
 
-export function encodeAssetId(type: string, relativePath: string) {
-  const raw = `${type}:${relativePath}`;
+export function encodeAssetId(relativePath: string) {
+  const raw = relativePath;
   const bytes = new TextEncoder().encode(raw);
   let binary = "";
   bytes.forEach((byte) => {

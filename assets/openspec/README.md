@@ -2,9 +2,6 @@
 title: OpenSpec CLI
 description: A lightweight spec-driven workflow for proposing, reviewing, and applying product or API changes.
 tags: [spec, cli, workflow]
-usage: command
-usageLabel: Command
-usageDescription: Run the install commands, then use the documented proposal-review-apply workflow.
 scenarios:
   - Spec-driven development in a team
   - Change approval before an AI agent edits code

@@ -1,4 +1,4 @@
-import { Asset, AssetType, UsageMode } from "./types";
+import { Asset } from "./types";
 import { encodeAssetId, firstMeaningfulLine, titleFromName } from "./utils";
 
 type Frontmatter = {
@@ -8,9 +8,6 @@ type Frontmatter = {
   scenarios?: unknown;
   install?: unknown;
   requires?: unknown;
-  usage?: unknown;
-  usageLabel?: unknown;
-  usageDescription?: unknown;
 };
 
 function toStringArray(value: unknown) {
@@ -120,54 +117,13 @@ function parseFrontmatter(markdown: string): { data: Frontmatter; content: strin
   };
 }
 
-function normalizeUsage(value: unknown, type: AssetType, install?: string): UsageMode {
-  if (value === "copy" || value === "files" || value === "command") {
-    return value;
-  }
-
-  if (install) {
-    return "command";
-  }
-
-  if (type === "prompt") {
-    return "copy";
-  }
-
-  return "files";
-}
-
-function defaultUsageLabel(usage: UsageMode) {
-  switch (usage) {
-    case "copy":
-      return "Copy";
-    case "files":
-      return "Files";
-    case "command":
-      return "Command";
-  }
-}
-
-function defaultUsageDescription(usage: UsageMode, type: AssetType) {
-  switch (usage) {
-    case "copy":
-      return "Copy the body content and paste it into an agent or workflow.";
-    case "files":
-      return type === "skill"
-        ? "Reference or copy the bundled files into the target agent environment."
-        : "Copy or adapt the bundled files and configuration into the target project.";
-    case "command":
-      return "Run the install or launch command, then follow the documented workflow.";
-  }
-}
-
 export function parseAssetMarkdown(params: {
-  type: AssetType;
   markdown: string;
   relativePath: string;
   resourcePaths?: string[];
   sourceName: string;
 }): Asset {
-  const { type, markdown, relativePath, resourcePaths = [], sourceName } = params;
+  const { markdown, relativePath, resourcePaths = [], sourceName } = params;
   let data: Frontmatter = {};
   let content = markdown;
   let parseError: string | undefined;
@@ -184,14 +140,9 @@ export function parseAssetMarkdown(params: {
   const title = toOptionalString(data.title) ?? titleFromName(sourceName);
   const description = toOptionalString(data.description) ?? firstMeaningfulLine(content);
   const install = toOptionalString(data.install);
-  const usage = normalizeUsage(data.usage, type, install);
 
   return {
-    id: encodeAssetId(type, relativePath),
-    type,
-    usage,
-    usageLabel: toOptionalString(data.usageLabel) ?? defaultUsageLabel(usage),
-    usageDescription: toOptionalString(data.usageDescription) ?? defaultUsageDescription(usage, type),
+    id: encodeAssetId(relativePath),
     title,
     description,
     tags: toStringArray(data.tags),

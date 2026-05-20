@@ -2,9 +2,6 @@
 title: PDF Handling Skill
 description: Practical guidance for extracting, combining, and rendering PDF content with Python.
 tags: [pdf, python, documents]
-usage: files
-usageLabel: Files
-usageDescription: Copy or reference this skill folder, including SKILL.md and bundled support files, in the target agent environment.
 scenarios:
   - Extracting PDF text
   - Merging PDF files

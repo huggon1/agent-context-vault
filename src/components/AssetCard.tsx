@@ -1,6 +1,5 @@
 import { Link } from "react-router-dom";
 import { Asset } from "../lib/types";
-import { UsageBadge } from "./UsageBadge";
 import { Badge } from "./ui/badge";
 import { Card } from "./ui/card";
 
@@ -13,8 +12,7 @@ export function AssetCard({ asset }: { asset: Asset }) {
   return (
     <Link to={`/asset/${asset.id}`} className="block h-full">
       <Card className="flex h-full min-h-[240px] flex-col p-5 transition hover:-translate-y-0.5 hover:border-ring/40 hover:shadow-md">
-        <div className="flex items-start justify-between gap-3">
-          <UsageBadge usage={asset.usage} label={asset.usageLabel} />
+        <div className="flex items-start justify-end">
           <span className="truncate text-xs text-muted-foreground">{asset.relativePath}</span>
         </div>
         <div className="mt-5 flex-1">
@@ -25,10 +23,6 @@ export function AssetCard({ asset }: { asset: Asset }) {
               Parse warning: {asset.parseError}
             </p>
           ) : null}
-        </div>
-        <div className="mt-5 border-t pt-4">
-          <div className="mb-2 text-xs font-medium text-muted-foreground">How to use</div>
-          <p className="line-clamp-2 text-xs leading-5 text-muted-foreground">{asset.usageDescription}</p>
         </div>
         {asset.tags.length > 0 ? (
           <div className="mt-5 flex flex-wrap gap-1.5">

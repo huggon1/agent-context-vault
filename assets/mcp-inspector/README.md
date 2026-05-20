@@ -2,9 +2,6 @@
 title: MCP Inspector
 description: Debug local MCP servers by inspecting tools, resources, prompts, and request/response payloads.
 tags: [mcp, debugging, tools]
-usage: command
-usageLabel: Command
-usageDescription: Run the inspector command to launch the local MCP debugging UI.
 scenarios:
   - Testing a local MCP server
   - Inspecting available tool schemas
