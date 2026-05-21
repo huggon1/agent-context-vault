@@ -44,7 +44,7 @@ function ToastViewport({ toasts }: { toasts: Toast[] }) {
         <div
           key={toast.id}
           className={cn(
-            "rounded-md border bg-popover px-4 py-3 text-popover-foreground shadow-lg",
+            "glass rounded-xl px-4 py-3 text-popover-foreground",
             "animate-in fade-in slide-in-from-bottom-2",
           )}
         >

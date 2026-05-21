@@ -307,6 +307,15 @@ async function handleConfigGet(_req, res) {
 async function handleConfigPost(req, res) {
   const body = await readJsonBody(req);
   const cur = await loadConfig();
+
+  if (typeof body.removePath === 'string' && body.removePath) {
+    const target = body.removePath;
+    cur.recentPaths = cur.recentPaths.filter((x) => x !== target);
+    if (cur.currentPath === target) cur.currentPath = '';
+    await saveConfig(cur);
+    return sendJson(res, 200, cur);
+  }
+
   if (typeof body.currentPath !== 'string') return sendJson(res, 400, { error: 'invalid_path' });
   const p = body.currentPath;
   cur.currentPath = p;

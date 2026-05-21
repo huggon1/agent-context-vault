@@ -1,5 +1,10 @@
 import * as React from "react";
-import { fetchConfig, fetchInstalled, saveConfig as saveConfigApi } from "../api/client";
+import {
+  fetchConfig,
+  fetchInstalled,
+  removeRecentPath as removeRecentPathApi,
+  saveConfig as saveConfigApi,
+} from "../api/client";
 import type { AgentVaultConfig, InstalledEntry } from "../lib/types";
 
 interface TargetPathContextValue {
@@ -8,6 +13,7 @@ interface TargetPathContextValue {
   installed: InstalledEntry[];
   loading: boolean;
   setCurrentPath: (path: string) => Promise<void>;
+  removeRecentPath: (path: string) => Promise<void>;
   refreshInstalled: () => Promise<void>;
 }
 
@@ -47,6 +53,11 @@ export function TargetPathProvider({ children }: { children: React.ReactNode }) 
     setConfig(next);
   }, []);
 
+  const removeRecentPath = React.useCallback(async (path: string) => {
+    const next = await removeRecentPathApi(path);
+    setConfig(next);
+  }, []);
+
   return (
     <TargetPathContext.Provider
       value={{
@@ -55,6 +66,7 @@ export function TargetPathProvider({ children }: { children: React.ReactNode }) 
         installed,
         loading,
         setCurrentPath,
+        removeRecentPath,
         refreshInstalled,
       }}
     >

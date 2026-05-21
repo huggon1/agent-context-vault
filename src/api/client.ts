@@ -53,3 +53,10 @@ export function saveConfig(currentPath: string) {
     body: JSON.stringify({ currentPath }),
   });
 }
+
+export function removeRecentPath(removePath: string) {
+  return request<AgentVaultConfig>("/api/config", {
+    method: "POST",
+    body: JSON.stringify({ removePath }),
+  });
+}

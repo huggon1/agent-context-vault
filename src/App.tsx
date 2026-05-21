@@ -1,5 +1,5 @@
 import * as React from "react";
-import { RefreshCw } from "lucide-react";
+import { RefreshCw, Sparkles, MessageSquareText, SearchX } from "lucide-react";
 import { LibraryProvider, useLibrary } from "./context/LibraryContext";
 import { TargetPathProvider, useTargetPath } from "./context/TargetPathContext";
 import { AppHeader } from "./components/AppHeader";
@@ -40,43 +40,64 @@ function LibraryView() {
   const filteredPrompts =
     library?.prompts.filter((p) => matches(`${p.title} ${p.description}`, search)) ?? [];
 
+  const skillCount = library?.skills.length ?? 0;
+  const promptCount = library?.prompts.length ?? 0;
+
   return (
-    <div className="min-h-screen bg-background">
+    <div className="relative min-h-screen">
       <AppHeader search={search} onSearchChange={setSearch} />
-      <main className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
-        <div className="mb-5 flex items-center gap-2 border-b">
-          <TabButton active={tab === "skills"} onClick={() => setTab("skills")}>
-            Skills {library ? `(${library.skills.length})` : ""}
-          </TabButton>
-          <TabButton active={tab === "prompts"} onClick={() => setTab("prompts")}>
-            Prompts {library ? `(${library.prompts.length})` : ""}
-          </TabButton>
+      <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+        <div className="mb-6 flex flex-wrap items-center gap-3">
+          <SegmentedTabs
+            value={tab}
+            onChange={setTab}
+            options={[
+              { value: "skills", label: "Skills", count: skillCount, icon: Sparkles },
+              { value: "prompts", label: "Prompts", count: promptCount, icon: MessageSquareText },
+            ]}
+          />
           <div className="ml-auto flex items-center gap-2 text-xs text-muted-foreground">
-            {loading ? <span>Loading…</span> : null}
-            {error ? <button onClick={refresh} className="text-red-500 underline">Retry</button> : null}
+            {loading ? (
+              <span className="inline-flex items-center gap-1.5">
+                <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-primary" />
+                Loading…
+              </span>
+            ) : null}
+            {error ? (
+              <button onClick={refresh} className="text-red-500 underline-offset-2 hover:underline">
+                Retry
+              </button>
+            ) : null}
             <Button
               type="button"
               size="sm"
-              variant="ghost"
+              variant="outline"
               onClick={() => {
                 void refresh();
                 void refreshInstalled();
               }}
               title="Refresh library and installed status"
             >
-              <RefreshCw className="h-4 w-4" /> Refresh
+              <RefreshCw className="h-3.5 w-3.5" /> Refresh
             </Button>
           </div>
         </div>
 
-        {error ? <div className="rounded-md border border-red-500/40 bg-red-500/10 p-3 text-sm text-red-500">{error}</div> : null}
+        {error ? (
+          <div className="mb-4 rounded-xl border border-red-500/40 bg-red-500/10 p-3 text-sm text-red-600 dark:text-red-300">
+            {error}
+          </div>
+        ) : null}
 
         {tab === "skills" ? (
-          <div className="space-y-4">
+          <div className="space-y-5">
             <TargetPathBar />
             {!currentPath ? (
-              <div className="rounded-md border border-amber-500/40 bg-amber-500/10 p-3 text-sm text-amber-700 dark:text-amber-200">
-                Set a target project path above to enable install / uninstall.
+              <div className="flex items-start gap-3 rounded-2xl border border-amber-500/40 bg-amber-500/10 p-4 text-sm text-amber-800 dark:text-amber-200">
+                <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-amber-500/20 text-xs font-semibold">!</span>
+                <p>
+                  Set a target project path above to enable install / uninstall.
+                </p>
               </div>
             ) : null}
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -88,20 +109,18 @@ function LibraryView() {
                   onOpen={() => setOpenSkill(s)}
                 />
               ))}
-              {filteredSkills.length === 0 && !loading ? (
-                <p className="col-span-full py-10 text-center text-sm text-muted-foreground">No skills match.</p>
-              ) : null}
             </div>
+            {filteredSkills.length === 0 && !loading ? <EmptyState query={search} /> : null}
           </div>
         ) : (
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {filteredPrompts.map((p) => (
-              <PromptCard key={p.slug} prompt={p} onOpen={() => setOpenPrompt(p)} />
-            ))}
-            {filteredPrompts.length === 0 && !loading ? (
-              <p className="col-span-full py-10 text-center text-sm text-muted-foreground">No prompts match.</p>
-            ) : null}
-          </div>
+          <>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {filteredPrompts.map((p) => (
+                <PromptCard key={p.slug} prompt={p} onOpen={() => setOpenPrompt(p)} />
+              ))}
+            </div>
+            {filteredPrompts.length === 0 && !loading ? <EmptyState query={search} /> : null}
+          </>
         )}
       </main>
 
@@ -128,27 +147,69 @@ function LibraryView() {
   );
 }
 
-function TabButton({
-  active,
-  onClick,
-  children,
+interface SegmentedTabOption<T> {
+  value: T;
+  label: string;
+  count?: number;
+  icon?: React.ComponentType<{ className?: string }>;
+}
+
+function SegmentedTabs<T extends string>({
+  value,
+  onChange,
+  options,
 }: {
-  active: boolean;
-  onClick: () => void;
-  children: React.ReactNode;
+  value: T;
+  onChange: (v: T) => void;
+  options: SegmentedTabOption<T>[];
 }) {
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`-mb-px border-b-2 px-4 py-2 text-sm font-medium transition-colors ${
-        active
-          ? "border-primary text-foreground"
-          : "border-transparent text-muted-foreground hover:text-foreground"
-      }`}
-    >
-      {children}
-    </button>
+    <div className="glass inline-flex items-center gap-1 rounded-full p-1">
+      {options.map((opt) => {
+        const active = opt.value === value;
+        const Icon = opt.icon;
+        return (
+          <button
+            key={opt.value}
+            type="button"
+            onClick={() => onChange(opt.value)}
+            className={`relative inline-flex items-center gap-2 rounded-full px-4 py-1.5 text-sm font-medium transition-colors ${
+              active
+                ? "bg-gradient-to-br from-primary to-[hsl(var(--accent-glow))] text-primary-foreground shadow-[0_6px_20px_-8px_hsl(var(--primary)/0.6)]"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            {Icon ? <Icon className="h-3.5 w-3.5" /> : null}
+            {opt.label}
+            {typeof opt.count === "number" ? (
+              <span
+                className={`rounded-full px-1.5 py-px text-[10px] tabular-nums ${
+                  active ? "bg-white/20" : "bg-muted text-muted-foreground"
+                }`}
+              >
+                {opt.count}
+              </span>
+            ) : null}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+function EmptyState({ query }: { query: string }) {
+  return (
+    <div className="glass mt-2 flex flex-col items-center justify-center gap-2 rounded-2xl px-6 py-16 text-center">
+      <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-muted text-muted-foreground">
+        <SearchX className="h-5 w-5" />
+      </div>
+      <p className="text-sm font-medium">No matches</p>
+      <p className="max-w-sm text-xs text-muted-foreground">
+        {query
+          ? `Nothing matched "${query}". Try a different keyword or clear the search.`
+          : "Nothing here yet."}
+      </p>
+    </div>
   );
 }
 

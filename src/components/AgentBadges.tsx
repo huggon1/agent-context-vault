@@ -11,7 +11,7 @@ export function AgentBadges({ agents }: { agents: string[] }) {
   return (
     <div className="flex flex-wrap gap-1">
       {agents.map((a) => (
-        <Badge key={a} variant="outline" className="text-[10px] uppercase tracking-wide">
+        <Badge key={a} variant="outline" className="uppercase">
           {LABELS[a] ?? a}
         </Badge>
       ))}

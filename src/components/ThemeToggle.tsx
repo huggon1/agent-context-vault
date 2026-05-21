@@ -17,8 +17,24 @@ export function ThemeToggle() {
   }, [dark]);
 
   return (
-    <Button type="button" variant="outline" size="icon" onClick={() => setDark((value) => !value)}>
-      {dark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+    <Button
+      type="button"
+      variant="outline"
+      size="icon"
+      onClick={() => setDark((value) => !value)}
+      aria-label="Toggle theme"
+      className="relative overflow-hidden"
+    >
+      <Sun
+        className={`absolute h-4 w-4 transition-all duration-300 ${
+          dark ? "scale-0 -rotate-90 opacity-0" : "scale-100 rotate-0 opacity-100"
+        }`}
+      />
+      <Moon
+        className={`absolute h-4 w-4 transition-all duration-300 ${
+          dark ? "scale-100 rotate-0 opacity-100" : "scale-0 rotate-90 opacity-0"
+        }`}
+      />
       <span className="sr-only">Toggle theme</span>
     </Button>
   );
