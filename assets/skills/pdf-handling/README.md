@@ -1,15 +1,7 @@
 ---
 title: PDF Handling Skill
 description: Practical guidance for extracting, combining, and rendering PDF content with Python.
-tags: [pdf, python, documents]
-scenarios:
-  - Extracting PDF text
-  - Merging PDF files
-  - Converting PDF pages to images
-requires:
-  - Python 3.10+
-  - pypdf
-  - pdfplumber
+agents: [claude-code, codex]
 ---
 
 # PDF Handling Skill

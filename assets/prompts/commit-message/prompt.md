@@ -1,12 +1,3 @@
----
-title: Conventional Commit Generator
-description: Generate a concise Conventional Commits message from a git diff.
-tags: [git, writing, release]
-scenarios:
-  - Organizing a batch of local uncommitted changes
-  - Normalizing history before merging a pull request
----
-
 You will receive a git diff and optional context about the intended change.
 
 Create a Conventional Commits message that accurately summarizes the change:

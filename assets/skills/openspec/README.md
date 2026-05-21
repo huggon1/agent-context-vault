@@ -1,15 +1,7 @@
 ---
 title: OpenSpec CLI
 description: A lightweight spec-driven workflow for proposing, reviewing, and applying product or API changes.
-tags: [spec, cli, workflow]
-scenarios:
-  - Spec-driven development in a team
-  - Change approval before an AI agent edits code
-install: |
-  npm install -g @openspec/cli
-  openspec init
-requires:
-  - Node.js 18+
+agents: [claude-code, codex]
 ---
 
 # OpenSpec CLI

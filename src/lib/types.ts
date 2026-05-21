@@ -1,25 +1,34 @@
-export interface Asset {
-  id: string;
+export type AgentTag = "claude-code" | "codex" | "all" | string;
+
+export interface AssetBase {
+  slug: string;
   title: string;
   description: string;
-  tags: string[];
-  scenarios: string[];
-  install?: string;
-  requires: string[];
-  content: string;
-  relativePath: string;
-  resourcePaths: string[];
-  sourceName: string;
-  parseError?: string;
+  agents: AgentTag[];
+  updatedAt: string;
+  readmeBody: string;
 }
 
-export interface ScanResult {
-  assets: Asset[];
-  missingExpectedDirectories: boolean;
-  errors: ScanError[];
+export type Skill = AssetBase;
+
+export interface Prompt extends AssetBase {
+  promptContent: string;
 }
 
-export interface ScanError {
-  path: string;
-  message: string;
+export interface Library {
+  skills: Skill[];
+  prompts: Prompt[];
+}
+
+export type InstallAgent = "claude-code" | "codex";
+
+export interface InstalledEntry {
+  slug: string;
+  agent: InstallAgent;
+  modified: boolean;
+}
+
+export interface AgentVaultConfig {
+  currentPath: string;
+  recentPaths: string[];
 }

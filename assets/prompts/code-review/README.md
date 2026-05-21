@@ -1,11 +1,7 @@
 ---
 title: Code Review Assistant
 description: Review a change for readability, bugs, performance, and security, then return prioritized feedback.
-tags: [coding, review, quality]
-scenarios:
-  - Pre-PR self review
-  - Mentoring junior engineers
-  - Post-refactor inspection
+agents: [claude-code, codex]
 ---
 
 You are a senior software engineer reviewing a code change.

@@ -1,6 +1,5 @@
 import * as React from "react";
 import ReactMarkdown from "react-markdown";
-import rehypeHighlight from "rehype-highlight";
 import remarkGfm from "remark-gfm";
 import { CopyButton } from "./CopyButton";
 
@@ -48,7 +47,6 @@ export function MarkdownRenderer({ content }: { content: string }) {
     <div className="markdown">
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
-        rehypePlugins={[rehypeHighlight]}
         components={{
           code: CodeBlock,
         }}

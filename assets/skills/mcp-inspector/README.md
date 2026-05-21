@@ -1,16 +1,7 @@
 ---
 title: MCP Inspector
 description: Debug local MCP servers by inspecting tools, resources, prompts, and request/response payloads.
-tags: [mcp, debugging, tools]
-scenarios:
-  - Testing a local MCP server
-  - Inspecting available tool schemas
-  - Debugging request and response payloads
-install: |
-  npx @modelcontextprotocol/inspector
-requires:
-  - Node.js 18+
-  - A local MCP server command
+agents: [claude-code, codex]
 ---
 
 # MCP Inspector

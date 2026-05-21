@@ -1,14 +1,7 @@
 ---
 title: API Design Skill
 description: Design REST and GraphQL APIs with clear resources, versioning, errors, and compatibility rules.
-tags: [api, architecture, backend]
-scenarios:
-  - Designing a new REST endpoint
-  - Reviewing a GraphQL schema
-  - Planning API versioning
-requires:
-  - Product requirements
-  - Consumer use cases
+agents: [claude-code, codex]
 ---
 
 # API Design Skill

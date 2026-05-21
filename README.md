@@ -1,113 +1,91 @@
-# Agent Context Manager
+# Agent Context Vault
 
-A read-only frontend for browsing agent context assets bundled in the root `assets/` directory. The app renders Markdown documentation, supports search and filters, and provides copy actions for asset content, entry paths, install commands, and code blocks.
+A local web UI for managing **skills** and **prompts** for your coding agents (Claude Code, Codex).
 
-The frontend does not open a native folder picker. Assets are managed as repository files under `assets/`.
+- Browse the bundled library at `assets/`
+- Configure a target project path and **install / uninstall skills** into either `.claude/skills/` or `.codex/skills/` with one click
+- **Copy prompts** straight to your clipboard
 
-## Stack
-
-- React 18, TypeScript, and Vite
-- Tailwind CSS with shadcn/ui-style local components
-- Generated internal asset index from `assets/`
-- Browser-safe frontmatter parser
-- `react-markdown`, `remark-gfm`, and `rehype-highlight` for Markdown rendering
-- `react-router-dom` for the home and asset detail routes
+The UI is a Vite frontend backed by a small Node API server. The backend uses Node built-ins only — no runtime dependencies.
 
 ## Run
-
-```bash
-pnpm install
-pnpm dev
-```
-
-Open the Vite URL. The bundled `assets/` library loads automatically.
-
-If `pnpm` is not installed globally, run through Corepack:
 
 ```bash
 corepack pnpm install
 corepack pnpm dev
 ```
 
-## Asset Library
+Open `http://localhost:5173`. Vite proxies `/api/*` to the Node server on port `5179`, so the browser only ever talks to a single origin (no CORS, no WSL port-forwarding quirks).
 
-The bundled asset library is `assets/` at the repository root:
+Run pieces separately while debugging:
+
+```bash
+corepack pnpm dev:server   # API only
+corepack pnpm dev:web      # Vite only
+```
+
+Override the API port if needed (the Vite proxy follows `VITE_API_BASE`):
+
+```bash
+AGENT_VAULT_PORT=5180 VITE_API_BASE=http://localhost:5180 corepack pnpm dev
+```
+
+## Using the UI
+
+- **Skills tab**: set a target project absolute path at the top, then each card shows per-agent install buttons (Claude Code, Codex). Installed skills get an "Installed" badge and `Reinstall` / `Uninstall` buttons. If your local copy diverges from the source, the card flags it as `Modified` and uninstall asks for confirmation.
+- **Prompts tab**: hit `Copy prompt` to put the `prompt.md` body on your clipboard. No target path needed.
+
+The library auto-refreshes when the window regains focus, plus there's a manual `Refresh` button. Recent target paths are persisted to `~/.agent-vault/config.json`.
+
+## Library Layout
 
 ```text
 assets/
-|-- CLAUDE.md
-|-- code-review/
-|   `-- README.md
-|-- commit-message/
-|   `-- README.md
-|-- rubber-duck/
-|   `-- README.md
-|-- api-design/
-|   |-- README.md
-|   `-- SKILL.md
-|-- pdf-handling/
-|   |-- README.md
-|   |-- SKILL.md
-|   |-- assets/
-|   `-- references/
-|-- mcp-inspector/
-|   `-- README.md
-`-- openspec/
-    |-- README.md
-    `-- templates/
+|-- CLAUDE.md                  # librarian instructions
+|-- skills/
+|   |-- api-design/{README.md, SKILL.md}
+|   |-- mcp-inspector/README.md
+|   |-- openspec/{README.md, templates/}
+|   `-- pdf-handling/{README.md, SKILL.md, references/, assets/}
+`-- prompts/
+    |-- code-review/{README.md, prompt.md}
+    |-- commit-message/{README.md, prompt.md}
+    `-- rubber-duck/{README.md, prompt.md}
 ```
 
-Every asset is a folder. `README.md` is the required display entrypoint; all other files in that folder are bundled resources.
+- A **skill** is a folder under `assets/skills/<slug>/`. Installing copies the whole folder into the target project — Claude Code → `<target>/.claude/skills/<slug>/`, Codex → `<target>/.codex/skills/<slug>/`.
+- A **prompt** is a folder under `assets/prompts/<slug>/` with `README.md` (display copy) and `prompt.md` (clipboard body).
 
-## Asset Index Generation
+## Frontmatter
 
-The frontend consumes `src/data/generatedLibrary.ts`, which is generated from `assets/`.
-
-```bash
-pnpm generate:library
-```
-
-Generation runs automatically before `pnpm dev` and `pnpm build`.
-
-Scanning rules:
-
-- `assets/*/README.md`: each direct child folder with a README is an asset.
-- Supporting files inside asset folders are collected into `resourcePaths` and shown as bundled files in the detail page.
-- Direct files under `assets/`, such as `assets/CLAUDE.md`, are not assets.
-
-## Frontmatter Schema
-
-All assets share the same optional frontmatter schema:
+Every `README.md` uses this minimal schema:
 
 ```yaml
 ---
-title: Code Review Assistant
-description: Review code for readability, bugs, performance, and security.
-tags: [coding, review]
-scenarios:
-  - Pre-PR self review
-  - Mentoring junior engineers
-install: |
-  npm install -g example-tool
-  example-tool init
-requires:
-  - Node.js 18+
-sourceUrl: https://example.com/source
-sourceType: documentation
-capturedAt: 2026-05-19
+title: Clear asset title
+description: One-sentence summary
+agents: [claude-code, codex]   # optional; omit for "all"
 ---
-
-Markdown body...
 ```
 
-Fields:
+`updatedAt` is injected at runtime from `git log` for the asset's folder — do not hand-maintain it. `prompt.md` typically has no frontmatter.
 
-- `title`: shown on cards and detail pages. Falls back to the file or folder name.
-- `description`: shown on cards and detail pages. Falls back to the first meaningful Markdown line.
-- `tags`: used for tag filtering.
-- `scenarios`: shown on cards and detail pages.
-- `install`: shown as a highlighted install block when present.
-- `requires`: shown in detail metadata.
-- `sourceUrl`, `sourceType`, `capturedAt`: required for assets derived from external URLs.
+## API
 
-Files without frontmatter still render normally. The app strips frontmatter before rendering Markdown and before copying asset content.
+| Method | Path | Body / Query |
+|---|---|---|
+| `GET` | `/api/library` | — |
+| `GET` | `/api/installed?path=<abs>` | returns `[{slug, agent, modified}]` across both agents |
+| `POST` | `/api/install` | `{ slug, targetPath, agent }` |
+| `DELETE` | `/api/uninstall` | `{ slug, targetPath, agent, force? }` |
+| `GET` | `/api/config` | — |
+| `POST` | `/api/config` | `{ currentPath }` |
+
+`agent` is `"claude-code"` or `"codex"` (defaults to `"claude-code"` if omitted). Uninstall returns `409` when the installed copy differs from the source; pass `force: true` to remove anyway.
+
+## Build
+
+```bash
+corepack pnpm build       # tsc + vite build
+corepack pnpm lint
+```

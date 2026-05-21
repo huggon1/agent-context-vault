@@ -1,7 +1,23 @@
 node_modules
 dist
+.vite
+*.tsbuildinfo
+
+# editor / OS
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# env
 .env
 .env.*
 *.local
-.DS_Store
-Thumbs.db
+
+# logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+
+# local agent-vault config (kept in user home; ignored if symlinked here)
+.agent-vault/
