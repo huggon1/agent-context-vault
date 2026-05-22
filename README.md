@@ -1,91 +1,61 @@
 # Agent Context Vault
 
-A local web UI for managing **skills** and **prompts** for your coding agents (Claude Code, Codex).
+A local app for managing reusable, hot-pluggable **skills** and **prompts** for Claude Code and Codex — built around reuse, organization, and easy customization.
 
-- Browse the bundled library at `assets/`
-- Configure a target project path and **install / uninstall skills** into either `.claude/skills/` or `.codex/skills/` with one click
-- **Copy prompts** straight to your clipboard
+![Screenshot](docs/screenshot.png)
 
-The UI is a Vite frontend backed by a small Node API server. The backend uses Node built-ins only — no runtime dependencies.
+## Why
 
-## Run
+Working with Claude Code (or Codex) across multiple projects usually means copy-pasting the same skill folders around, losing track of which project has which version, and slowly drifting away from a single source of truth. Agent Context Vault keeps one curated library on your machine and lets you drop pieces into any project as needed.
 
-```bash
-corepack pnpm install
-corepack pnpm dev
-```
+- **Reuse** — write or import a skill/prompt once, install it into any project.
+- **Manage** — see your whole library in one UI; know what's installed where.
+- **Customize** — edit content in-app or directly on disk; everything is plain Markdown under Git.
 
-Open `http://localhost:5173`. Vite proxies `/api/*` to the Node server on port `5179`, so the browser only ever talks to a single origin (no CORS, no WSL port-forwarding quirks).
+## Core concepts
 
-Run pieces separately while debugging:
+- **Skill** — a directory containing `SKILL.md` (with frontmatter) plus any supporting files.
+- **Prompt** — a single Markdown file with frontmatter and body.
+- **Hot-pluggable** — the canonical copy lives in `vault/`. Installing copies it into a project's `.claude/skills/<slug>` or `.codex/skills/<slug>`. Uninstalling removes the copy. The source is never touched.
 
-```bash
-corepack pnpm dev:server   # API only
-corepack pnpm dev:web      # Vite only
-```
-
-Override the API port if needed (the Vite proxy follows `VITE_API_BASE`):
+## Quick start
 
 ```bash
-AGENT_VAULT_PORT=5180 VITE_API_BASE=http://localhost:5180 corepack pnpm dev
+pnpm install
+pnpm dev              # starts the local server (:5179) and the web UI (:5173)
 ```
 
-## Using the UI
+Open the UI, then set a **Target Path** (the project you want to install skills into). That's it.
 
-- **Skills tab**: set a target project absolute path at the top, then each card shows per-agent install buttons (Claude Code, Codex). Installed skills get an "Installed" badge and `Reinstall` / `Uninstall` buttons. If your local copy diverges from the source, the card flags it as `Modified` and uninstall asks for confirmation.
-- **Prompts tab**: hit `Copy prompt` to put the `prompt.md` body on your clipboard. No target path needed.
+## Features
 
-The library auto-refreshes when the window regains focus, plus there's a manual `Refresh` button. Recent target paths are persisted to `~/.agent-vault/config.json`.
+- Browse and search your library of skills and prompts, with a detail drawer for each.
+- One-click install / uninstall into a project's `.claude/` or `.codex/` directory.
+- Edit prompts in-app via a structured frontmatter + body editor; edit skills directly on disk.
+- Create new prompts from the UI.
+- Import skills from any GitHub `tree/` URL — the contents land in `vault/skills/<slug>`.
+- Rename skills with directory + frontmatter kept in sync.
+- Local modifications to installed copies are detected, so you don't accidentally clobber your own edits.
 
-## Library Layout
+## Repository layout
 
-```text
-assets/
-|-- CLAUDE.md                  # librarian instructions
-|-- skills/
-|   |-- api-design/{README.md, SKILL.md}
-|   |-- mcp-inspector/README.md
-|   |-- openspec/{README.md, templates/}
-|   `-- pdf-handling/{README.md, SKILL.md, references/, assets/}
-`-- prompts/
-    |-- code-review/{README.md, prompt.md}
-    |-- commit-message/{README.md, prompt.md}
-    `-- rubber-duck/{README.md, prompt.md}
+```
+vault/
+  skills/<slug>/SKILL.md       # skill source (directory + frontmatter)
+  prompts/<slug>.md            # prompt source (single file + frontmatter)
+server/                        # local Node API (no DB, reads vault/ directly)
+src/                           # Vite + React UI
+~/.agent-vault/config.json     # remembered target path and recents
 ```
 
-- A **skill** is a folder under `assets/skills/<slug>/`. Installing copies the whole folder into the target project — Claude Code → `<target>/.claude/skills/<slug>/`, Codex → `<target>/.codex/skills/<slug>/`.
-- A **prompt** is a folder under `assets/prompts/<slug>/` with `README.md` (display copy) and `prompt.md` (clipboard body).
+## Design
 
-## Frontmatter
+Three ideas hold the project together:
 
-Every `README.md` uses this minimal schema:
+1. **Plain Markdown is the only persistent state.** No database. Skills are directories, prompts are files, frontmatter is the metadata. Git is the history layer — you can bypass the UI at any time and edit, diff, or revert with normal tools.
+2. **Local-first, zero cloud.** Everything runs on `localhost`. The only outbound traffic is when you explicitly import from GitHub.
+3. **Source and installed copy are kept distinct.** The vault is the source of truth; project directories hold copies. The app compares them so you can tell when an installed copy has been modified, and refuses destructive operations on dirty copies unless forced.
 
-```yaml
----
-title: Clear asset title
-description: One-sentence summary
-agents: [claude-code, codex]   # optional; omit for "all"
----
-```
+## License
 
-`updatedAt` is injected at runtime from `git log` for the asset's folder — do not hand-maintain it. `prompt.md` typically has no frontmatter.
-
-## API
-
-| Method | Path | Body / Query |
-|---|---|---|
-| `GET` | `/api/library` | — |
-| `GET` | `/api/installed?path=<abs>` | returns `[{slug, agent, modified}]` across both agents |
-| `POST` | `/api/install` | `{ slug, targetPath, agent }` |
-| `DELETE` | `/api/uninstall` | `{ slug, targetPath, agent, force? }` |
-| `GET` | `/api/config` | — |
-| `POST` | `/api/config` | `{ currentPath }` |
-
-`agent` is `"claude-code"` or `"codex"` (defaults to `"claude-code"` if omitted). Uninstall returns `409` when the installed copy differs from the source; pass `force: true` to remove anyway.
-
-## Build
-
-```bash
-corepack pnpm build       # tsc + vite build
-corepack pnpm lint
-```
+[MIT](./LICENSE)

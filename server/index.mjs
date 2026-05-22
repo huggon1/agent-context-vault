@@ -10,9 +10,9 @@ import { parseFrontmatter, parsePromptBody } from './parser.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, '..');
-const ASSETS_DIR = path.join(ROOT, 'assets');
-const SKILLS_DIR = path.join(ASSETS_DIR, 'skills');
-const PROMPTS_DIR = path.join(ASSETS_DIR, 'prompts');
+const VAULT_DIR = path.join(ROOT, 'vault');
+const SKILLS_DIR = path.join(VAULT_DIR, 'skills');
+const PROMPTS_DIR = path.join(VAULT_DIR, 'prompts');
 const CONFIG_DIR = path.join(os.homedir(), '.agent-vault');
 const CONFIG_FILE = path.join(CONFIG_DIR, 'config.json');
 const SLUG_RE = /^[a-z0-9][a-z0-9-]*$/;
