@@ -1,5 +1,5 @@
 const FRONTMATTER_RE = /^---\r?\n([\s\S]*?)\r?\n---\r?\n?/;
-const COPY_END_RE = /\n<!-- copy:end -->\n/;
+const LEGACY_COPY_END_RE = /\n<!-- copy:end -->\n[\s\S]*$/;
 
 function parseScalar(raw) {
   const trimmed = raw.trim();
@@ -57,9 +57,5 @@ export function parseFrontmatter(source) {
 }
 
 export function parsePromptBody(body) {
-  const idx = body.search(COPY_END_RE);
-  if (idx === -1) return { copyContent: body, descriptionBody: '' };
-  const copyContent = body.slice(0, idx + 1); // keep trailing newline
-  const after = body.slice(idx + '\n<!-- copy:end -->\n'.length);
-  return { copyContent, descriptionBody: after };
+  return { copyContent: body.replace(LEGACY_COPY_END_RE, '') };
 }

@@ -2,7 +2,6 @@ import { ArrowUpRight } from "lucide-react";
 import { Card, CardContent, CardHeader } from "./ui/card";
 import { Button } from "./ui/button";
 import { CopyButton } from "./CopyButton";
-import { AgentBadges } from "./AgentBadges";
 import { formatRelative, formatDate } from "../lib/time";
 import type { Prompt } from "../lib/types";
 
@@ -28,8 +27,7 @@ export function PromptCard({ prompt, onOpen }: Props) {
         <p className="line-clamp-3 text-sm leading-6 text-muted-foreground">{prompt.description}</p>
       </CardHeader>
       <CardContent className="mt-auto space-y-4">
-        <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground">
-          <AgentBadges agents={prompt.agents} />
+        <div className="flex items-center justify-end gap-2 text-xs text-muted-foreground">
           <span title={prompt.updatedAt}>
             {formatRelative(prompt.updatedAt) || formatDate(prompt.updatedAt)}
           </span>
