@@ -40,7 +40,7 @@ function LibraryView() {
   }, [installed]);
 
   const filteredSkills =
-    library?.skills.filter((s) => matches(`${s.title} ${s.description}`, search)) ?? [];
+    library?.skills.filter((s) => matches(`${s.name} ${s.description}`, search)) ?? [];
   const filteredPrompts =
     library?.prompts.filter((p) => matches(`${p.title} ${p.description}`, search)) ?? [];
 
@@ -157,11 +157,11 @@ function LibraryView() {
         onClose={() => setOpenSkill(null)}
         slug={openSkill?.slug ?? ""}
         assetType="skill"
-        title={openSkill?.title ?? ""}
+        title={openSkill?.name ?? ""}
         description={openSkill?.description ?? ""}
-        agents={openSkill?.agents ?? []}
         updatedAt={openSkill?.updatedAt ?? ""}
         body={openSkill?.readmeBody ?? ""}
+        onSlugChange={() => setOpenSkill(null)}
       />
       <DetailDrawer
         open={Boolean(openPrompt)}
@@ -170,9 +170,8 @@ function LibraryView() {
         assetType="prompt"
         title={openPrompt?.title ?? ""}
         description={openPrompt?.description ?? ""}
-        agents={openPrompt?.agents ?? []}
         updatedAt={openPrompt?.updatedAt ?? ""}
-        body={openPrompt?.readmeBody ?? ""}
+        body=""
         promptContent={openPrompt?.promptContent}
       />
       <CreatePromptDrawer

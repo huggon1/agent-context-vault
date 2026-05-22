@@ -1,7 +1,6 @@
 ---
-title: PDF Handling Skill
+name: pdf-handling
 description: Practical guidance for extracting, combining, and rendering PDF content with Python.
-agents: [claude-code, codex]
 ---
 
 # PDF Handling Skill

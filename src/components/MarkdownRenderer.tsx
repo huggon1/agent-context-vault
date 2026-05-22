@@ -3,26 +3,17 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { CopyButton } from "./CopyButton";
 
-function CodeBlock({
-  inline,
-  className,
-  children,
-  ...props
-}: {
-  inline?: boolean;
-  className?: string;
-  children?: React.ReactNode;
-}) {
-  const code = String(children ?? "").replace(/\n$/, "");
+function extractCodeText(children: React.ReactNode): string {
+  const child = React.Children.toArray(children).find(
+    (c): c is React.ReactElement<{ children?: React.ReactNode }> =>
+      React.isValidElement(c) && (c.type === "code" || (typeof c.type === "string" && c.type === "code")),
+  );
+  const raw = child?.props.children ?? children;
+  return String(raw ?? "").replace(/\n$/, "");
+}
 
-  if (inline) {
-    return (
-      <code className={className} {...props}>
-        {children}
-      </code>
-    );
-  }
-
+function Pre({ children, ...props }: React.HTMLAttributes<HTMLPreElement>) {
+  const code = extractCodeText(children);
   return (
     <div className="group relative my-5 overflow-hidden rounded-md border bg-muted/40">
       <CopyButton
@@ -33,12 +24,18 @@ function CodeBlock({
         variant="secondary"
         className="absolute right-2 top-2 z-10 h-7 opacity-0 shadow-sm transition-opacity group-hover:opacity-100 focus:opacity-100"
       />
-      <pre className="overflow-x-auto p-4 pr-20 text-sm">
-        <code className={className} {...props}>
-          {children}
-        </code>
+      <pre {...props} className="overflow-x-auto p-4 pr-20 text-sm">
+        {children}
       </pre>
     </div>
+  );
+}
+
+function Code({ className, children, ...props }: React.HTMLAttributes<HTMLElement>) {
+  return (
+    <code className={className} {...props}>
+      {children}
+    </code>
   );
 }
 
@@ -48,7 +45,8 @@ export function MarkdownRenderer({ content }: { content: string }) {
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
         components={{
-          code: CodeBlock,
+          pre: Pre,
+          code: Code,
         }}
       >
         {content}

@@ -3,7 +3,6 @@ import { CheckCircle2, AlertTriangle, Download, RefreshCw, Trash2, ArrowUpRight 
 import { Card, CardContent, CardHeader } from "./ui/card";
 import { Button } from "./ui/button";
 import { Badge } from "./ui/badge";
-import { AgentBadges } from "./AgentBadges";
 import { useToast } from "./ui/toast";
 import { installSkill, uninstallSkill } from "../api/client";
 import { useTargetPath } from "../context/TargetPathContext";
@@ -21,19 +20,12 @@ interface Props {
   onOpen: () => void;
 }
 
-function supportedAgents(skill: Skill): InstallAgent[] {
-  if (!skill.agents || skill.agents.length === 0 || skill.agents.includes("all")) {
-    return AGENT_OPTIONS.map((a) => a.id);
-  }
-  return AGENT_OPTIONS.map((a) => a.id).filter((id) => skill.agents.includes(id));
-}
-
 export function SkillCard({ skill, statuses, onOpen }: Props) {
   const { currentPath, refreshInstalled } = useTargetPath();
   const { toast } = useToast();
   const [busy, setBusy] = React.useState<InstallAgent | null>(null);
 
-  const targets = supportedAgents(skill);
+  const targets = AGENT_OPTIONS.map((a) => a.id);
   const statusByAgent = new Map<InstallAgent, InstalledEntry>();
   for (const s of statuses) statusByAgent.set(s.agent, s);
   const installedCount = statuses.length;
@@ -45,7 +37,7 @@ export function SkillCard({ skill, statuses, onOpen }: Props) {
     try {
       await installSkill(skill.slug, currentPath, agent);
       await refreshInstalled();
-      toast({ title: `Installed ${skill.title}`, description: `→ ${AGENT_OPTIONS.find((a) => a.id === agent)?.label}` });
+      toast({ title: `Installed ${skill.name}`, description: `→ ${AGENT_OPTIONS.find((a) => a.id === agent)?.label}` });
     } catch (err) {
       toast({ title: "Install failed", description: err instanceof Error ? err.message : String(err) });
     } finally {
@@ -59,12 +51,12 @@ export function SkillCard({ skill, statuses, onOpen }: Props) {
     try {
       await uninstallSkill(skill.slug, currentPath, agent, force);
       await refreshInstalled();
-      toast({ title: `Uninstalled ${skill.title}`, description: `← ${AGENT_OPTIONS.find((a) => a.id === agent)?.label}` });
+      toast({ title: `Uninstalled ${skill.name}`, description: `← ${AGENT_OPTIONS.find((a) => a.id === agent)?.label}` });
     } catch (err) {
       const e = err as Error & { status?: number };
       if (e.status === 409 && !force) {
         const ok = window.confirm(
-          `${skill.title} has local modifications. Remove anyway?`,
+          `${skill.name} has local modifications. Remove anyway?`,
         );
         if (ok) {
           setBusy(null);
@@ -88,7 +80,7 @@ export function SkillCard({ skill, statuses, onOpen }: Props) {
             className="group/title -m-1 inline-flex items-start gap-1 rounded p-1 text-left"
           >
             <h3 className="line-clamp-2 text-base font-semibold tracking-tight group-hover/title:text-primary">
-              {skill.title}
+              {skill.name}
             </h3>
             <ArrowUpRight className="mt-1 h-3.5 w-3.5 shrink-0 text-muted-foreground opacity-0 transition-all group-hover/title:translate-x-0.5 group-hover/title:-translate-y-0.5 group-hover/title:opacity-100 group-hover/title:text-primary" />
           </button>
@@ -113,8 +105,7 @@ export function SkillCard({ skill, statuses, onOpen }: Props) {
         <p className="line-clamp-3 text-sm leading-6 text-muted-foreground">{skill.description}</p>
       </CardHeader>
       <CardContent className="mt-auto space-y-4">
-        <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground">
-          <AgentBadges agents={skill.agents} />
+        <div className="flex items-center justify-end gap-2 text-xs text-muted-foreground">
           <span title={skill.updatedAt}>
             {formatRelative(skill.updatedAt) || formatDate(skill.updatedAt)}
           </span>

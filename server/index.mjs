@@ -67,28 +67,18 @@ async function readDirSafe(dir, { type = 'dir' } = {}) {
   }
 }
 
-function parseMeta(data, slug, body) {
-  const title = typeof data.title === 'string' && data.title ? data.title : slug;
-  const description = typeof data.description === 'string' ? data.description : '';
-  let agents;
-  if (Array.isArray(data.agents)) agents = data.agents;
-  else if (typeof data.agents === 'string' && data.agents.trim()) agents = [data.agents.trim()];
-  else agents = ['all'];
-  return { slug, title, description, agents, readmeBody: body };
-}
-
 async function readSkill(slug) {
   const absDir = path.join(SKILLS_DIR, slug);
-  const readmeFile = path.join(SKILLS_DIR, `${slug}.md`);
+  const skillFile = path.join(absDir, 'SKILL.md');
   const updatedAt = await getUpdatedAt(absDir);
-  let readmeBody = '';
   try {
-    const raw = await fs.readFile(readmeFile, 'utf8');
+    const raw = await fs.readFile(skillFile, 'utf8');
     const { data, body } = parseFrontmatter(raw);
-    return { ...parseMeta(data, slug, body), updatedAt };
+    const name = typeof data.name === 'string' && data.name ? data.name : slug;
+    const description = typeof data.description === 'string' ? data.description : '';
+    return { slug, name, description, updatedAt, readmeBody: body };
   } catch {
-    // README is optional; still return a valid skill entry
-    return { slug, title: slug, description: '', agents: ['all'], updatedAt, readmeBody };
+    return { slug, name: slug, description: '', updatedAt, readmeBody: '' };
   }
 }
 
@@ -101,12 +91,16 @@ async function readPrompt(slug) {
     return null;
   }
   const { data, body } = parseFrontmatter(raw);
-  const { copyContent, descriptionBody } = parsePromptBody(body);
+  const { copyContent } = parsePromptBody(body);
   const updatedAt = await getUpdatedAt(promptFile);
+  const title = typeof data.title === 'string' && data.title ? data.title : slug;
+  const description = typeof data.description === 'string' ? data.description : '';
   return {
-    ...parseMeta(data, slug, descriptionBody),
+    slug,
+    title,
+    description,
     updatedAt,
-    promptContent: copyContent,
+    promptContent: copyContent.trim(),
   };
 }
 
@@ -117,7 +111,7 @@ async function listLibrary() {
   ]);
   const skills = (await Promise.all(skillSlugs.map((s) => readSkill(s)))).filter(Boolean);
   const prompts = (await Promise.all(promptSlugs.map((s) => readPrompt(s)))).filter(Boolean);
-  skills.sort((a, b) => a.title.localeCompare(b.title));
+  skills.sort((a, b) => a.name.localeCompare(b.name));
   prompts.sort((a, b) => a.title.localeCompare(b.title));
   return { skills, prompts };
 }
@@ -238,12 +232,9 @@ function sendJson(res, status, body) {
 async function handleGetAsset(_req, res, url) {
   const type = url.searchParams.get('type');
   const slug = url.searchParams.get('slug');
-  if (type !== 'skill' && type !== 'prompt') return sendJson(res, 400, { error: 'invalid_type' });
+  if (type !== 'prompt') return sendJson(res, 400, { error: 'invalid_type' });
   if (!validateSlug(slug)) return sendJson(res, 400, { error: 'invalid_slug' });
-  const filePath =
-    type === 'skill'
-      ? path.join(SKILLS_DIR, `${slug}.md`)
-      : path.join(PROMPTS_DIR, `${slug}.md`);
+  const filePath = path.join(PROMPTS_DIR, `${slug}.md`);
   try {
     const content = await fs.readFile(filePath, 'utf8');
     sendJson(res, 200, { content });
@@ -255,16 +246,65 @@ async function handleGetAsset(_req, res, url) {
 async function handleSaveAsset(req, res) {
   const body = await readJsonBody(req);
   const { type, slug, content } = body;
-  if (type !== 'skill' && type !== 'prompt') return sendJson(res, 400, { error: 'invalid_type' });
+  if (type !== 'prompt') return sendJson(res, 400, { error: 'invalid_type' });
   if (!validateSlug(slug)) return sendJson(res, 400, { error: 'invalid_slug' });
   if (typeof content !== 'string') return sendJson(res, 400, { error: 'invalid_content' });
-  const filePath =
-    type === 'skill'
-      ? path.join(SKILLS_DIR, `${slug}.md`)
-      : path.join(PROMPTS_DIR, `${slug}.md`);
+  const filePath = path.join(PROMPTS_DIR, `${slug}.md`);
   await fs.writeFile(filePath, content, 'utf8');
   mtimeCache.delete(filePath);
   sendJson(res, 200, { ok: true });
+}
+
+async function findInstalledAgents(slug, targetPath) {
+  if (!validateAbsolutePath(targetPath)) return [];
+  const found = [];
+  for (const agent of Object.keys(AGENT_DIRS)) {
+    const dir = skillTargetDir(targetPath, slug, agent);
+    if (await pathExists(dir)) found.push(agent);
+  }
+  return found;
+}
+
+async function handleSkillRename(req, res) {
+  const body = await readJsonBody(req);
+  const { slug, newSlug, targetPath } = body;
+  if (!validateSlug(slug)) return sendJson(res, 400, { error: 'invalid_slug' });
+  if (!validateSlug(newSlug)) return sendJson(res, 400, { error: 'invalid_new_slug' });
+  if (slug === newSlug) return sendJson(res, 400, { error: 'same_slug' });
+
+  const oldDir = path.join(SKILLS_DIR, slug);
+  const newDir = path.join(SKILLS_DIR, newSlug);
+  if (!(await pathExists(oldDir))) return sendJson(res, 404, { error: 'skill_not_found' });
+  if (await pathExists(newDir)) return sendJson(res, 409, { error: 'slug_exists' });
+
+  if (typeof targetPath === 'string' && targetPath) {
+    const installed = await findInstalledAgents(slug, targetPath);
+    if (installed.length > 0) {
+      return sendJson(res, 409, { error: 'installed', agents: installed });
+    }
+  }
+
+  await fs.rename(oldDir, newDir);
+  mtimeCache.delete(oldDir);
+  mtimeCache.delete(newDir);
+
+  const skillFile = path.join(newDir, 'SKILL.md');
+  try {
+    const raw = await fs.readFile(skillFile, 'utf8');
+    const updated = raw.replace(/^name:\s*.*$/m, `name: ${newSlug}`);
+    if (updated === raw) {
+      // No name field present — insert one after the opening ---
+      const inserted = raw.replace(/^---\r?\n/, (m) => `${m}name: ${newSlug}\n`);
+      await fs.writeFile(skillFile, inserted, 'utf8');
+    } else {
+      await fs.writeFile(skillFile, updated, 'utf8');
+    }
+    mtimeCache.delete(skillFile);
+  } catch {
+    // SKILL.md may not exist; ignore
+  }
+
+  sendJson(res, 200, { ok: true, slug: newSlug });
 }
 
 async function handleLibrary(_req, res) {
@@ -480,6 +520,7 @@ const server = createServer(async (req, res) => {
     if (pathname === '/api/uninstall' && req.method === 'DELETE') return handleUninstall(req, res);
     if (pathname === '/api/asset' && req.method === 'GET') return handleGetAsset(req, res, url);
     if (pathname === '/api/asset' && req.method === 'PUT') return handleSaveAsset(req, res);
+    if (pathname === '/api/skill/rename' && req.method === 'POST') return handleSkillRename(req, res);
     if (pathname === '/api/import' && req.method === 'POST') return handleImport(req, res);
     if (pathname === '/api/config' && req.method === 'GET') return handleConfigGet(req, res);
     if (pathname === '/api/config' && req.method === 'POST') return handleConfigPost(req, res);

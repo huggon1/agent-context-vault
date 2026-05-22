@@ -1,7 +1,6 @@
 ---
-title: API Design Skill
+name: api-design
 description: Design REST and GraphQL APIs with clear resources, versioning, errors, and compatibility rules.
-agents: [claude-code, codex]
 ---
 
 # API Design Skill

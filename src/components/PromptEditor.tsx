@@ -3,8 +3,6 @@ import { Input } from "./ui/input";
 import { isValidSlug, titleToSlug } from "../lib/parseAsset";
 import type { PromptFields } from "../lib/parseAsset";
 
-const KNOWN_AGENTS = ["claude-code", "codex"] as const;
-
 interface SlugFieldProps {
   value: string;
   onChange: (s: string) => void;
@@ -31,13 +29,6 @@ export function PromptEditor({ fields, onChange, disabled, slugField }: Props) {
     }
   }
 
-  function toggleAgent(agent: string) {
-    const current = fields.agents.filter((a) => a !== "all");
-    const next = current.includes(agent) ? current.filter((a) => a !== agent) : [...current, agent];
-    set("agents", next.length > 0 ? next : ["all"]);
-  }
-
-  const activeAgents = fields.agents.filter((a) => a !== "all");
   const slugInvalid = slugField && !isValidSlug(slugField.value);
 
   return (
@@ -78,49 +69,15 @@ export function PromptEditor({ fields, onChange, disabled, slugField }: Props) {
             disabled={disabled}
           />
         </Field>
-
-        <Field label="Agents">
-          <div className="flex flex-wrap gap-4">
-            {KNOWN_AGENTS.map((agent) => (
-              <label key={agent} className="flex cursor-pointer items-center gap-2 text-sm">
-                <input
-                  type="checkbox"
-                  checked={activeAgents.includes(agent)}
-                  onChange={() => toggleAgent(agent)}
-                  disabled={disabled}
-                  className="h-3.5 w-3.5 rounded border-border accent-primary"
-                />
-                <span className="font-mono text-xs">{agent}</span>
-              </label>
-            ))}
-            {activeAgents.length === 0 && (
-              <span className="text-xs text-muted-foreground">(no restriction — all agents)</span>
-            )}
-          </div>
-        </Field>
       </Section>
 
-      <Section label="Prompt Content">
-        <p className="text-xs text-muted-foreground">This is the text that gets copied when the user clicks the Copy button on the card.</p>
+      <Section label="Content">
         <textarea
           value={fields.copyContent}
           onChange={(e) => set("copyContent", e.target.value)}
           disabled={disabled}
           placeholder="Write the prompt text here…"
-          rows={10}
-          spellCheck={false}
-          className="w-full resize-y rounded-md border border-border bg-muted/40 p-3 font-mono text-sm leading-relaxed text-foreground outline-none focus:ring-1 focus:ring-ring disabled:opacity-50"
-        />
-      </Section>
-
-      <Section label="Description Body">
-        <p className="text-xs text-muted-foreground">Optional. Shown in the detail view below the copy bar — use this for usage instructions, examples, or context.</p>
-        <textarea
-          value={fields.descriptionBody}
-          onChange={(e) => set("descriptionBody", e.target.value)}
-          disabled={disabled}
-          placeholder="How to use this prompt, examples, notes… (optional)"
-          rows={6}
+          rows={14}
           spellCheck={false}
           className="w-full resize-y rounded-md border border-border bg-muted/40 p-3 font-mono text-sm leading-relaxed text-foreground outline-none focus:ring-1 focus:ring-ring disabled:opacity-50"
         />

@@ -61,14 +61,21 @@ export function removeRecentPath(removePath: string) {
   });
 }
 
-export function fetchAssetRaw(type: "skill" | "prompt", slug: string) {
+export function fetchAssetRaw(type: "prompt", slug: string) {
   return request<{ content: string }>(`/api/asset?type=${type}&slug=${encodeURIComponent(slug)}`);
 }
 
-export function saveAsset(type: "skill" | "prompt", slug: string, content: string) {
+export function saveAsset(type: "prompt", slug: string, content: string) {
   return request<{ ok: true }>("/api/asset", {
     method: "PUT",
     body: JSON.stringify({ type, slug, content }),
+  });
+}
+
+export function renameSkill(slug: string, newSlug: string, targetPath: string) {
+  return request<{ ok: true; slug: string }>("/api/skill/rename", {
+    method: "POST",
+    body: JSON.stringify({ slug, newSlug, targetPath }),
   });
 }
 

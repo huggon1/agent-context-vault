@@ -1,7 +1,6 @@
 ---
-title: MCP Inspector
+name: mcp-inspector
 description: Debug local MCP servers by inspecting tools, resources, prompts, and request/response payloads.
-agents: [claude-code, codex]
 ---
 
 # MCP Inspector

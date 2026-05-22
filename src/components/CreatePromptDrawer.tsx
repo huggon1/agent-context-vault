@@ -2,13 +2,13 @@ import * as React from "react";
 import { X } from "lucide-react";
 import { Button } from "./ui/button";
 import { PromptEditor } from "./PromptEditor";
-import { assemblePrompt, isValidSlug, titleToSlug } from "../lib/parseAsset";
+import { assemblePrompt, isValidSlug } from "../lib/parseAsset";
 import type { PromptFields } from "../lib/parseAsset";
 import { useLibrary } from "../context/LibraryContext";
 import { useToast } from "./ui/toast";
 import { saveAsset } from "../api/client";
 
-const EMPTY: PromptFields = { title: "", description: "", agents: ["all"], copyContent: "", descriptionBody: "" };
+const EMPTY: PromptFields = { title: "", description: "", copyContent: "" };
 
 interface Props {
   open: boolean;

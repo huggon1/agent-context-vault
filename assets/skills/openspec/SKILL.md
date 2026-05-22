@@ -1,7 +1,6 @@
 ---
-title: OpenSpec CLI
+name: openspec
 description: A lightweight spec-driven workflow for proposing, reviewing, and applying product or API changes.
-agents: [claude-code, codex]
 ---
 
 # OpenSpec CLI

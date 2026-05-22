@@ -1,17 +1,18 @@
 export type AgentTag = "claude-code" | "codex" | "all" | string;
 
-export interface AssetBase {
+export interface Skill {
   slug: string;
-  title: string;
+  name: string;
   description: string;
-  agents: AgentTag[];
   updatedAt: string;
   readmeBody: string;
 }
 
-export type Skill = AssetBase;
-
-export interface Prompt extends AssetBase {
+export interface Prompt {
+  slug: string;
+  title: string;
+  description: string;
+  updatedAt: string;
   promptContent: string;
 }
 
