@@ -127,6 +127,8 @@ function LibraryView() {
       <DetailDrawer
         open={Boolean(openSkill)}
         onClose={() => setOpenSkill(null)}
+        slug={openSkill?.slug ?? ""}
+        assetType="skill"
         title={openSkill?.title ?? ""}
         description={openSkill?.description ?? ""}
         agents={openSkill?.agents ?? []}
@@ -136,6 +138,8 @@ function LibraryView() {
       <DetailDrawer
         open={Boolean(openPrompt)}
         onClose={() => setOpenPrompt(null)}
+        slug={openPrompt?.slug ?? ""}
+        assetType="prompt"
         title={openPrompt?.title ?? ""}
         description={openPrompt?.description ?? ""}
         agents={openPrompt?.agents ?? []}
