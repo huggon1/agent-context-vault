@@ -9,8 +9,8 @@ import { fileURLToPath } from 'node:url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, '..');
-const SKILLS_DIR = path.join(ROOT, 'assets', 'skills');
-const PROMPTS_DIR = path.join(ROOT, 'assets', 'prompts');
+const SKILLS_DIR = path.join(ROOT, 'vault', 'skills');
+const PROMPTS_DIR = path.join(ROOT, 'vault', 'prompts');
 
 const FRONTMATTER_RE = /^---\r?\n[\s\S]*?\r?\n---\r?\n?/;
 
