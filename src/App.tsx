@@ -1,5 +1,5 @@
 import * as React from "react";
-import { RefreshCw, Sparkles, MessageSquareText, SearchX, Download } from "lucide-react";
+import { RefreshCw, Sparkles, MessageSquareText, SearchX, Download, FilePlus } from "lucide-react";
 import { LibraryProvider, useLibrary } from "./context/LibraryContext";
 import { TargetPathProvider, useTargetPath } from "./context/TargetPathContext";
 import { AppHeader } from "./components/AppHeader";
@@ -8,6 +8,7 @@ import { SkillCard } from "./components/SkillCard";
 import { PromptCard } from "./components/PromptCard";
 import { DetailDrawer } from "./components/DetailDrawer";
 import { ImportPanel } from "./components/ImportPanel";
+import { CreatePromptDrawer } from "./components/CreatePromptDrawer";
 import { Button } from "./components/ui/button";
 import type { Prompt, Skill } from "./lib/types";
 
@@ -24,6 +25,7 @@ function LibraryView() {
   const [tab, setTab] = React.useState<Tab>("skills");
   const [search, setSearch] = React.useState("");
   const [importOpen, setImportOpen] = React.useState(false);
+  const [createPromptOpen, setCreatePromptOpen] = React.useState(false);
   const [openSkill, setOpenSkill] = React.useState<Skill | null>(null);
   const [openPrompt, setOpenPrompt] = React.useState<Prompt | null>(null);
 
@@ -80,7 +82,17 @@ function LibraryView() {
               >
                 <Download className="h-3.5 w-3.5" /> Import
               </Button>
-            ) : null}
+            ) : (
+              <Button
+                type="button"
+                size="sm"
+                variant={createPromptOpen ? "outline" : "ghost"}
+                onClick={() => setCreatePromptOpen((v) => !v)}
+                title="Create a new prompt"
+              >
+                <FilePlus className="h-3.5 w-3.5" /> New Prompt
+              </Button>
+            )}
             <Button
               type="button"
               size="sm"
@@ -162,6 +174,10 @@ function LibraryView() {
         updatedAt={openPrompt?.updatedAt ?? ""}
         body={openPrompt?.readmeBody ?? ""}
         promptContent={openPrompt?.promptContent}
+      />
+      <CreatePromptDrawer
+        open={createPromptOpen}
+        onClose={() => setCreatePromptOpen(false)}
       />
     </div>
   );

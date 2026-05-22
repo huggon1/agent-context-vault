@@ -1,5 +1,5 @@
 import * as React from "react";
-import { X, Pencil } from "lucide-react";
+import { X, Pencil, FilePlus } from "lucide-react";
 import { Button } from "./ui/button";
 import { MarkdownRenderer } from "./MarkdownRenderer";
 import { CopyButton } from "./CopyButton";
@@ -8,6 +8,19 @@ import { formatDate, formatRelative } from "../lib/time";
 import { useToast } from "./ui/toast";
 import { useLibrary } from "../context/LibraryContext";
 import { fetchAssetRaw, saveAsset } from "../api/client";
+import { PromptEditor } from "./PromptEditor";
+import { SkillReadmeEditor } from "./SkillReadmeEditor";
+import {
+  parsePromptRaw,
+  assemblePrompt,
+  parseSkillReadmeRaw,
+  assembleSkillReadme,
+} from "../lib/parseAsset";
+import type { PromptFields, SkillReadmeFields } from "../lib/parseAsset";
+
+type EditState =
+  | { kind: "skill"; fields: SkillReadmeFields }
+  | { kind: "prompt"; fields: PromptFields };
 
 interface Props {
   open: boolean;
@@ -36,45 +49,59 @@ export function DetailDrawer({
 }: Props) {
   const { toast } = useToast();
   const { refresh } = useLibrary();
-  const [editing, setEditing] = React.useState(false);
-  const [editContent, setEditContent] = React.useState("");
+  const [editState, setEditState] = React.useState<EditState | null>(null);
   const [saving, setSaving] = React.useState(false);
+
+  const editing = editState !== null;
 
   React.useEffect(() => {
     function onKey(e: KeyboardEvent) {
       if (e.key === "Escape") {
-        if (editing) {
-          setEditing(false);
-        } else {
-          onClose();
-        }
+        if (editing) setEditState(null);
+        else onClose();
       }
     }
     if (open) window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [open, onClose, editing]);
 
-  // Reset edit state when drawer closes or switches asset
   React.useEffect(() => {
-    if (!open) setEditing(false);
+    if (!open) setEditState(null);
   }, [open, slug]);
 
   async function handleEdit() {
     try {
       const { content } = await fetchAssetRaw(assetType, slug);
-      setEditContent(content);
-      setEditing(true);
-    } catch {
-      toast({ title: "Could not load file for editing" });
+      if (assetType === "skill") {
+        setEditState({ kind: "skill", fields: parseSkillReadmeRaw(content) });
+      } else {
+        setEditState({ kind: "prompt", fields: parsePromptRaw(content) });
+      }
+    } catch (err: unknown) {
+      // 404 for skill means no README yet — start from card metadata
+      if (assetType === "skill" && (err as { status?: number }).status === 404) {
+        setEditState({ kind: "skill", fields: { title, description, agents, body: "" } });
+      } else {
+        toast({ title: "Could not load file for editing" });
+      }
     }
   }
 
+  function handleCreateReadme() {
+    setEditState({ kind: "skill", fields: { title, description, agents, body: "" } });
+  }
+
   async function handleSave() {
+    if (!editState) return;
     setSaving(true);
     try {
-      await saveAsset(assetType, slug, editContent);
+      const content =
+        editState.kind === "skill"
+          ? assembleSkillReadme(editState.fields)
+          : assemblePrompt(editState.fields);
+      await saveAsset(assetType, slug, content);
       await refresh();
-      setEditing(false);
+      setEditState(null);
       toast({ title: "Saved" });
     } catch (err) {
       toast({ title: "Save failed", description: err instanceof Error ? err.message : String(err) });
@@ -99,7 +126,9 @@ export function DetailDrawer({
 
         <div className="relative flex items-start justify-between gap-3 border-b border-border/60 p-6">
           <div className="min-w-0 space-y-2">
-            <h2 className="truncate text-xl font-semibold tracking-tight">{title}</h2>
+            <h2 className="truncate text-xl font-semibold tracking-tight">
+              {editing && editState?.kind === "skill" ? editState.fields.title || title : title}
+            </h2>
             <p className="text-sm leading-6 text-muted-foreground">{description}</p>
             <div className="flex flex-wrap items-center gap-2 pt-1 text-xs text-muted-foreground">
               <AgentBadges agents={agents} />
@@ -130,29 +159,26 @@ export function DetailDrawer({
 
         <div className="relative flex-1 overflow-y-auto px-6 py-5">
           {editing ? (
-            <div className="flex h-full flex-col gap-3">
-              <textarea
-                className="flex-1 resize-none rounded-md border border-border bg-muted/40 p-3 font-mono text-sm leading-relaxed text-foreground outline-none focus:ring-1 focus:ring-ring"
-                value={editContent}
-                onChange={(e) => setEditContent(e.target.value)}
-                spellCheck={false}
-              />
-              <div className="flex justify-end gap-2">
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setEditing(false)}
+            <div className="flex flex-col gap-4">
+              {editState?.kind === "skill" && (
+                <SkillReadmeEditor
+                  fields={editState.fields}
+                  onChange={(f) => setEditState({ kind: "skill", fields: f })}
                   disabled={saving}
-                >
+                />
+              )}
+              {editState?.kind === "prompt" && (
+                <PromptEditor
+                  fields={editState.fields}
+                  onChange={(f) => setEditState({ kind: "prompt", fields: f })}
+                  disabled={saving}
+                />
+              )}
+              <div className="flex justify-end gap-2 pt-2">
+                <Button type="button" variant="ghost" size="sm" onClick={() => setEditState(null)} disabled={saving}>
                   Cancel
                 </Button>
-                <Button
-                  type="button"
-                  size="sm"
-                  onClick={handleSave}
-                  disabled={saving}
-                >
+                <Button type="button" size="sm" onClick={handleSave} disabled={saving}>
                   {saving ? "Saving…" : "Save"}
                 </Button>
               </div>
@@ -160,7 +186,15 @@ export function DetailDrawer({
           ) : hasBody ? (
             <MarkdownRenderer content={body} />
           ) : (
-            <p className="text-sm text-muted-foreground">No documentation available.</p>
+            <div className="flex flex-col items-start gap-3">
+              <p className="text-sm text-muted-foreground">No documentation available.</p>
+              {assetType === "skill" && (
+                <Button type="button" size="sm" variant="outline" onClick={handleCreateReadme}>
+                  <FilePlus className="h-3.5 w-3.5" />
+                  Add README
+                </Button>
+              )}
+            </div>
           )}
         </div>
       </div>
