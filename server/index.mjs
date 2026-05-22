@@ -1,4 +1,5 @@
 import { createServer } from 'node:http';
+import https from 'node:https';
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
@@ -365,6 +366,101 @@ async function handleConfigPost(req, res) {
   sendJson(res, 200, cur);
 }
 
+function httpsGet(url, headers = {}) {
+  return new Promise((resolve, reject) => {
+    const req = https.request(url, { headers }, (res) => {
+      const chunks = [];
+      res.on('data', (c) => chunks.push(c));
+      res.on('end', () => resolve({ status: res.statusCode, body: Buffer.concat(chunks) }));
+    });
+    req.on('error', reject);
+    req.end();
+  });
+}
+
+const GH_HEADERS = { 'User-Agent': 'agent-vault/1.0', 'Accept': 'application/vnd.github+json' };
+
+async function githubGet(apiUrl) {
+  const { status, body } = await httpsGet(apiUrl, GH_HEADERS);
+  if (status !== 200) {
+    const err = new Error(`GitHub API ${status}`);
+    err.ghStatus = status;
+    throw err;
+  }
+  return JSON.parse(body.toString('utf8'));
+}
+
+async function githubGetRaw(downloadUrl) {
+  const { status, body } = await httpsGet(downloadUrl, { 'User-Agent': 'agent-vault/1.0' });
+  if (status !== 200) throw new Error(`Raw download ${status}: ${downloadUrl}`);
+  return body;
+}
+
+const GH_TREE_RE = /^https:\/\/github\.com\/([^/]+)\/([^/]+)\/tree\/([^/]+)\/(.+)$/;
+
+function parseGitHubTreeUrl(rawUrl) {
+  const m = GH_TREE_RE.exec(rawUrl.trim());
+  if (!m) return null;
+  const [, owner, repo, branch, remotePath] = m;
+  return { owner, repo, branch, remotePath };
+}
+
+async function downloadGitHubDir(owner, repo, branch, remotePath, localDir) {
+  const encodedPath = remotePath.split('/').map(encodeURIComponent).join('/');
+  const apiUrl = `https://api.github.com/repos/${owner}/${repo}/contents/${encodedPath}?ref=${encodeURIComponent(branch)}`;
+  const entries = await githubGet(apiUrl);
+  if (!Array.isArray(entries)) throw new Error('Expected directory listing from GitHub API');
+  await fs.mkdir(localDir, { recursive: true });
+  for (const entry of entries) {
+    if (entry.type === 'file') {
+      const data = await githubGetRaw(entry.download_url);
+      await fs.writeFile(path.join(localDir, entry.name), data);
+    } else if (entry.type === 'dir') {
+      await downloadGitHubDir(owner, repo, branch, entry.path, path.join(localDir, entry.name));
+    }
+  }
+}
+
+async function handleImport(req, res) {
+  const body = await readJsonBody(req);
+  const { url, force = false } = body;
+  if (typeof url !== 'string' || !url.trim())
+    return sendJson(res, 400, { error: 'missing_url', message: 'url is required.' });
+
+  const parsed = parseGitHubTreeUrl(url);
+  if (!parsed)
+    return sendJson(res, 400, {
+      error: 'invalid_url',
+      message: 'Must be a GitHub tree URL: https://github.com/{owner}/{repo}/tree/{branch}/{path}',
+    });
+
+  const { owner, repo, branch, remotePath } = parsed;
+  const slug = remotePath.split('/').filter(Boolean).at(-1) ?? '';
+  if (!validateSlug(slug))
+    return sendJson(res, 400, { error: 'invalid_slug', message: `Derived slug "${slug}" is not valid.` });
+
+  const destDir = path.join(SKILLS_DIR, slug);
+  if (!force && (await pathExists(destDir)))
+    return sendJson(res, 409, { error: 'skill_exists', slug, message: `Skill "${slug}" already exists.` });
+
+  try {
+    if (await pathExists(destDir)) {
+      await fs.rm(destDir, { recursive: true, force: true });
+      mtimeCache.delete(destDir);
+    }
+    await downloadGitHubDir(owner, repo, branch, remotePath, destDir);
+    mtimeCache.delete(destDir);
+    sendJson(res, 200, { ok: true, slug });
+  } catch (err) {
+    await fs.rm(destDir, { recursive: true, force: true }).catch(() => {});
+    if (err.ghStatus === 404)
+      return sendJson(res, 502, { error: 'github_not_found', message: 'GitHub returned 404 — check the URL.' });
+    if (err.ghStatus === 403 || err.ghStatus === 429)
+      return sendJson(res, 502, { error: 'github_rate_limit', message: 'GitHub API rate limit. Try again later.' });
+    sendJson(res, 502, { error: 'github_error', message: String(err.message) });
+  }
+}
+
 const server = createServer(async (req, res) => {
   try {
     if (req.method === 'OPTIONS') {
@@ -372,6 +468,7 @@ const server = createServer(async (req, res) => {
         'access-control-allow-origin': ALLOWED_ORIGIN,
         'access-control-allow-methods': 'GET,POST,PUT,DELETE,OPTIONS',
         'access-control-allow-headers': 'content-type',
+        'access-control-max-age': '86400',
       });
       return res.end();
     }
@@ -383,6 +480,7 @@ const server = createServer(async (req, res) => {
     if (pathname === '/api/uninstall' && req.method === 'DELETE') return handleUninstall(req, res);
     if (pathname === '/api/asset' && req.method === 'GET') return handleGetAsset(req, res, url);
     if (pathname === '/api/asset' && req.method === 'PUT') return handleSaveAsset(req, res);
+    if (pathname === '/api/import' && req.method === 'POST') return handleImport(req, res);
     if (pathname === '/api/config' && req.method === 'GET') return handleConfigGet(req, res);
     if (pathname === '/api/config' && req.method === 'POST') return handleConfigPost(req, res);
     sendJson(res, 404, { error: 'not_found' });

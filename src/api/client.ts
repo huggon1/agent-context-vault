@@ -71,3 +71,10 @@ export function saveAsset(type: "skill" | "prompt", slug: string, content: strin
     body: JSON.stringify({ type, slug, content }),
   });
 }
+
+export function importSkill(url: string, force = false) {
+  return request<{ ok: true; slug: string }>("/api/import", {
+    method: "POST",
+    body: JSON.stringify({ url, force }),
+  });
+}
