@@ -60,3 +60,21 @@ export function removeRecentPath(removePath: string) {
     body: JSON.stringify({ removePath }),
   });
 }
+
+export function fetchAssetRaw(type: "skill" | "prompt", slug: string) {
+  return request<{ content: string }>(`/api/asset?type=${type}&slug=${encodeURIComponent(slug)}`);
+}
+
+export function saveAsset(type: "skill" | "prompt", slug: string, content: string) {
+  return request<{ ok: true }>("/api/asset", {
+    method: "PUT",
+    body: JSON.stringify({ type, slug, content }),
+  });
+}
+
+export function importSkill(url: string, force = false) {
+  return request<{ ok: true; slug: string }>("/api/import", {
+    method: "POST",
+    body: JSON.stringify({ url, force }),
+  });
+}

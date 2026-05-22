@@ -1,5 +1,5 @@
 import * as React from "react";
-import { RefreshCw, Sparkles, MessageSquareText, SearchX } from "lucide-react";
+import { RefreshCw, Sparkles, MessageSquareText, SearchX, Download, FilePlus } from "lucide-react";
 import { LibraryProvider, useLibrary } from "./context/LibraryContext";
 import { TargetPathProvider, useTargetPath } from "./context/TargetPathContext";
 import { AppHeader } from "./components/AppHeader";
@@ -7,6 +7,8 @@ import { TargetPathBar } from "./components/TargetPathBar";
 import { SkillCard } from "./components/SkillCard";
 import { PromptCard } from "./components/PromptCard";
 import { DetailDrawer } from "./components/DetailDrawer";
+import { ImportPanel } from "./components/ImportPanel";
+import { CreatePromptDrawer } from "./components/CreatePromptDrawer";
 import { Button } from "./components/ui/button";
 import type { Prompt, Skill } from "./lib/types";
 
@@ -22,6 +24,8 @@ function LibraryView() {
   const { installed, currentPath, refreshInstalled } = useTargetPath();
   const [tab, setTab] = React.useState<Tab>("skills");
   const [search, setSearch] = React.useState("");
+  const [importOpen, setImportOpen] = React.useState(false);
+  const [createPromptOpen, setCreatePromptOpen] = React.useState(false);
   const [openSkill, setOpenSkill] = React.useState<Skill | null>(null);
   const [openPrompt, setOpenPrompt] = React.useState<Prompt | null>(null);
 
@@ -68,6 +72,27 @@ function LibraryView() {
                 Retry
               </button>
             ) : null}
+            {tab === "skills" ? (
+              <Button
+                type="button"
+                size="sm"
+                variant={importOpen ? "outline" : "ghost"}
+                onClick={() => setImportOpen((v) => !v)}
+                title="Import a skill from GitHub"
+              >
+                <Download className="h-3.5 w-3.5" /> Import
+              </Button>
+            ) : (
+              <Button
+                type="button"
+                size="sm"
+                variant={createPromptOpen ? "outline" : "ghost"}
+                onClick={() => setCreatePromptOpen((v) => !v)}
+                title="Create a new prompt"
+              >
+                <FilePlus className="h-3.5 w-3.5" /> New Prompt
+              </Button>
+            )}
             <Button
               type="button"
               size="sm"
@@ -92,6 +117,9 @@ function LibraryView() {
         {tab === "skills" ? (
           <div className="space-y-5">
             <TargetPathBar />
+            {importOpen ? (
+              <ImportPanel onClose={() => setImportOpen(false)} />
+            ) : null}
             {!currentPath ? (
               <div className="flex items-start gap-3 rounded-2xl border border-amber-500/40 bg-amber-500/10 p-4 text-sm text-amber-800 dark:text-amber-200">
                 <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-amber-500/20 text-xs font-semibold">!</span>
@@ -127,6 +155,8 @@ function LibraryView() {
       <DetailDrawer
         open={Boolean(openSkill)}
         onClose={() => setOpenSkill(null)}
+        slug={openSkill?.slug ?? ""}
+        assetType="skill"
         title={openSkill?.title ?? ""}
         description={openSkill?.description ?? ""}
         agents={openSkill?.agents ?? []}
@@ -136,12 +166,18 @@ function LibraryView() {
       <DetailDrawer
         open={Boolean(openPrompt)}
         onClose={() => setOpenPrompt(null)}
+        slug={openPrompt?.slug ?? ""}
+        assetType="prompt"
         title={openPrompt?.title ?? ""}
         description={openPrompt?.description ?? ""}
         agents={openPrompt?.agents ?? []}
         updatedAt={openPrompt?.updatedAt ?? ""}
         body={openPrompt?.readmeBody ?? ""}
         promptContent={openPrompt?.promptContent}
+      />
+      <CreatePromptDrawer
+        open={createPromptOpen}
+        onClose={() => setCreatePromptOpen(false)}
       />
     </div>
   );

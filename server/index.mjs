@@ -1,11 +1,12 @@
 import { createServer } from 'node:http';
+import https from 'node:https';
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
 import crypto from 'node:crypto';
 import { execFile } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
-import { parseFrontmatter } from './parser.mjs';
+import { parseFrontmatter, parsePromptBody } from './parser.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, '..');
@@ -54,58 +55,65 @@ async function getUpdatedAt(absPath) {
   return result;
 }
 
-async function readDirSafe(dir) {
+async function readDirSafe(dir, { type = 'dir' } = {}) {
   try {
     const entries = await fs.readdir(dir, { withFileTypes: true });
-    return entries.filter((e) => e.isDirectory()).map((e) => e.name);
+    if (type === 'dir') return entries.filter((e) => e.isDirectory()).map((e) => e.name);
+    if (type === 'md') return entries.filter((e) => e.isFile() && e.name.endsWith('.md')).map((e) => e.name.slice(0, -3));
+    return entries.map((e) => e.name);
   } catch (err) {
     if (err.code === 'ENOENT') return [];
     throw err;
   }
 }
 
-async function readAssetMeta(absDir, slug) {
-  let raw;
-  try {
-    raw = await fs.readFile(path.join(absDir, 'README.md'), 'utf8');
-  } catch {
-    return null;
-  }
-  const { data, body } = parseFrontmatter(raw);
+function parseMeta(data, slug, body) {
   const title = typeof data.title === 'string' && data.title ? data.title : slug;
   const description = typeof data.description === 'string' ? data.description : '';
   let agents;
   if (Array.isArray(data.agents)) agents = data.agents;
   else if (typeof data.agents === 'string' && data.agents.trim()) agents = [data.agents.trim()];
   else agents = ['all'];
-  const updatedAt = await getUpdatedAt(absDir);
-  return { slug, title, description, agents, updatedAt, readmeBody: body };
+  return { slug, title, description, agents, readmeBody: body };
 }
 
 async function readSkill(slug) {
   const absDir = path.join(SKILLS_DIR, slug);
-  return readAssetMeta(absDir, slug);
+  const readmeFile = path.join(SKILLS_DIR, `${slug}.md`);
+  const updatedAt = await getUpdatedAt(absDir);
+  let readmeBody = '';
+  try {
+    const raw = await fs.readFile(readmeFile, 'utf8');
+    const { data, body } = parseFrontmatter(raw);
+    return { ...parseMeta(data, slug, body), updatedAt };
+  } catch {
+    // README is optional; still return a valid skill entry
+    return { slug, title: slug, description: '', agents: ['all'], updatedAt, readmeBody };
+  }
 }
 
 async function readPrompt(slug) {
-  const absDir = path.join(PROMPTS_DIR, slug);
-  const meta = await readAssetMeta(absDir, slug);
-  if (!meta) return null;
-  let promptContent = '';
+  const promptFile = path.join(PROMPTS_DIR, `${slug}.md`);
+  let raw;
   try {
-    const raw = await fs.readFile(path.join(absDir, 'prompt.md'), 'utf8');
-    const { body } = parseFrontmatter(raw);
-    promptContent = body.trimEnd() + '\n';
+    raw = await fs.readFile(promptFile, 'utf8');
   } catch {
-    promptContent = meta.readmeBody.trimEnd() + '\n';
+    return null;
   }
-  return { ...meta, promptContent };
+  const { data, body } = parseFrontmatter(raw);
+  const { copyContent, descriptionBody } = parsePromptBody(body);
+  const updatedAt = await getUpdatedAt(promptFile);
+  return {
+    ...parseMeta(data, slug, descriptionBody),
+    updatedAt,
+    promptContent: copyContent,
+  };
 }
 
 async function listLibrary() {
   const [skillSlugs, promptSlugs] = await Promise.all([
     readDirSafe(SKILLS_DIR),
-    readDirSafe(PROMPTS_DIR),
+    readDirSafe(PROMPTS_DIR, { type: 'md' }),
   ]);
   const skills = (await Promise.all(skillSlugs.map((s) => readSkill(s)))).filter(Boolean);
   const prompts = (await Promise.all(promptSlugs.map((s) => readPrompt(s)))).filter(Boolean);
@@ -221,10 +229,42 @@ function sendJson(res, status, body) {
     'content-type': 'application/json; charset=utf-8',
     'content-length': Buffer.byteLength(payload),
     'access-control-allow-origin': ALLOWED_ORIGIN,
-    'access-control-allow-methods': 'GET,POST,DELETE,OPTIONS',
+    'access-control-allow-methods': 'GET,POST,PUT,DELETE,OPTIONS',
     'access-control-allow-headers': 'content-type',
   });
   res.end(payload);
+}
+
+async function handleGetAsset(_req, res, url) {
+  const type = url.searchParams.get('type');
+  const slug = url.searchParams.get('slug');
+  if (type !== 'skill' && type !== 'prompt') return sendJson(res, 400, { error: 'invalid_type' });
+  if (!validateSlug(slug)) return sendJson(res, 400, { error: 'invalid_slug' });
+  const filePath =
+    type === 'skill'
+      ? path.join(SKILLS_DIR, `${slug}.md`)
+      : path.join(PROMPTS_DIR, `${slug}.md`);
+  try {
+    const content = await fs.readFile(filePath, 'utf8');
+    sendJson(res, 200, { content });
+  } catch {
+    sendJson(res, 404, { error: 'not_found' });
+  }
+}
+
+async function handleSaveAsset(req, res) {
+  const body = await readJsonBody(req);
+  const { type, slug, content } = body;
+  if (type !== 'skill' && type !== 'prompt') return sendJson(res, 400, { error: 'invalid_type' });
+  if (!validateSlug(slug)) return sendJson(res, 400, { error: 'invalid_slug' });
+  if (typeof content !== 'string') return sendJson(res, 400, { error: 'invalid_content' });
+  const filePath =
+    type === 'skill'
+      ? path.join(SKILLS_DIR, `${slug}.md`)
+      : path.join(PROMPTS_DIR, `${slug}.md`);
+  await fs.writeFile(filePath, content, 'utf8');
+  mtimeCache.delete(filePath);
+  sendJson(res, 200, { ok: true });
 }
 
 async function handleLibrary(_req, res) {
@@ -326,13 +366,109 @@ async function handleConfigPost(req, res) {
   sendJson(res, 200, cur);
 }
 
+function httpsGet(url, headers = {}) {
+  return new Promise((resolve, reject) => {
+    const req = https.request(url, { headers }, (res) => {
+      const chunks = [];
+      res.on('data', (c) => chunks.push(c));
+      res.on('end', () => resolve({ status: res.statusCode, body: Buffer.concat(chunks) }));
+    });
+    req.on('error', reject);
+    req.end();
+  });
+}
+
+const GH_HEADERS = { 'User-Agent': 'agent-vault/1.0', 'Accept': 'application/vnd.github+json' };
+
+async function githubGet(apiUrl) {
+  const { status, body } = await httpsGet(apiUrl, GH_HEADERS);
+  if (status !== 200) {
+    const err = new Error(`GitHub API ${status}`);
+    err.ghStatus = status;
+    throw err;
+  }
+  return JSON.parse(body.toString('utf8'));
+}
+
+async function githubGetRaw(downloadUrl) {
+  const { status, body } = await httpsGet(downloadUrl, { 'User-Agent': 'agent-vault/1.0' });
+  if (status !== 200) throw new Error(`Raw download ${status}: ${downloadUrl}`);
+  return body;
+}
+
+const GH_TREE_RE = /^https:\/\/github\.com\/([^/]+)\/([^/]+)\/tree\/([^/]+)\/(.+)$/;
+
+function parseGitHubTreeUrl(rawUrl) {
+  const m = GH_TREE_RE.exec(rawUrl.trim());
+  if (!m) return null;
+  const [, owner, repo, branch, remotePath] = m;
+  return { owner, repo, branch, remotePath };
+}
+
+async function downloadGitHubDir(owner, repo, branch, remotePath, localDir) {
+  const encodedPath = remotePath.split('/').map(encodeURIComponent).join('/');
+  const apiUrl = `https://api.github.com/repos/${owner}/${repo}/contents/${encodedPath}?ref=${encodeURIComponent(branch)}`;
+  const entries = await githubGet(apiUrl);
+  if (!Array.isArray(entries)) throw new Error('Expected directory listing from GitHub API');
+  await fs.mkdir(localDir, { recursive: true });
+  for (const entry of entries) {
+    if (entry.type === 'file') {
+      const data = await githubGetRaw(entry.download_url);
+      await fs.writeFile(path.join(localDir, entry.name), data);
+    } else if (entry.type === 'dir') {
+      await downloadGitHubDir(owner, repo, branch, entry.path, path.join(localDir, entry.name));
+    }
+  }
+}
+
+async function handleImport(req, res) {
+  const body = await readJsonBody(req);
+  const { url, force = false } = body;
+  if (typeof url !== 'string' || !url.trim())
+    return sendJson(res, 400, { error: 'missing_url', message: 'url is required.' });
+
+  const parsed = parseGitHubTreeUrl(url);
+  if (!parsed)
+    return sendJson(res, 400, {
+      error: 'invalid_url',
+      message: 'Must be a GitHub tree URL: https://github.com/{owner}/{repo}/tree/{branch}/{path}',
+    });
+
+  const { owner, repo, branch, remotePath } = parsed;
+  const slug = remotePath.split('/').filter(Boolean).at(-1) ?? '';
+  if (!validateSlug(slug))
+    return sendJson(res, 400, { error: 'invalid_slug', message: `Derived slug "${slug}" is not valid.` });
+
+  const destDir = path.join(SKILLS_DIR, slug);
+  if (!force && (await pathExists(destDir)))
+    return sendJson(res, 409, { error: 'skill_exists', slug, message: `Skill "${slug}" already exists.` });
+
+  try {
+    if (await pathExists(destDir)) {
+      await fs.rm(destDir, { recursive: true, force: true });
+      mtimeCache.delete(destDir);
+    }
+    await downloadGitHubDir(owner, repo, branch, remotePath, destDir);
+    mtimeCache.delete(destDir);
+    sendJson(res, 200, { ok: true, slug });
+  } catch (err) {
+    await fs.rm(destDir, { recursive: true, force: true }).catch(() => {});
+    if (err.ghStatus === 404)
+      return sendJson(res, 502, { error: 'github_not_found', message: 'GitHub returned 404 — check the URL.' });
+    if (err.ghStatus === 403 || err.ghStatus === 429)
+      return sendJson(res, 502, { error: 'github_rate_limit', message: 'GitHub API rate limit. Try again later.' });
+    sendJson(res, 502, { error: 'github_error', message: String(err.message) });
+  }
+}
+
 const server = createServer(async (req, res) => {
   try {
     if (req.method === 'OPTIONS') {
       res.writeHead(204, {
         'access-control-allow-origin': ALLOWED_ORIGIN,
-        'access-control-allow-methods': 'GET,POST,DELETE,OPTIONS',
+        'access-control-allow-methods': 'GET,POST,PUT,DELETE,OPTIONS',
         'access-control-allow-headers': 'content-type',
+        'access-control-max-age': '86400',
       });
       return res.end();
     }
@@ -342,6 +478,9 @@ const server = createServer(async (req, res) => {
     if (pathname === '/api/installed' && req.method === 'GET') return handleInstalled(req, res, url);
     if (pathname === '/api/install' && req.method === 'POST') return handleInstall(req, res);
     if (pathname === '/api/uninstall' && req.method === 'DELETE') return handleUninstall(req, res);
+    if (pathname === '/api/asset' && req.method === 'GET') return handleGetAsset(req, res, url);
+    if (pathname === '/api/asset' && req.method === 'PUT') return handleSaveAsset(req, res);
+    if (pathname === '/api/import' && req.method === 'POST') return handleImport(req, res);
     if (pathname === '/api/config' && req.method === 'GET') return handleConfigGet(req, res);
     if (pathname === '/api/config' && req.method === 'POST') return handleConfigPost(req, res);
     sendJson(res, 404, { error: 'not_found' });
