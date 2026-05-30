@@ -18,7 +18,7 @@ const AGENTS: { id: InstallAgent; label: string }[] = [
 
 export function ProjectDetailPage() {
   const { id = "" } = useParams();
-  const { projects } = useProjects();
+  const { projects, loading } = useProjects();
   const { library } = useLibrary();
   const { toast } = useToast();
   const project = projects.find((p) => p.id === id) ?? null;
@@ -28,11 +28,16 @@ export function ProjectDetailPage() {
   const [search, setSearch] = React.useState("");
   const [selected, setSelected] = React.useState<Set<string>>(new Set());
   const [busy, setBusy] = React.useState<string | null>(null);
+  const [batching, setBatching] = React.useState(false);
 
   const refreshInstalled = React.useCallback(async () => {
     if (!id) return;
-    const { installed } = await fetchInstalled(id);
-    setInstalled(installed);
+    try {
+      const { installed } = await fetchInstalled(id);
+      setInstalled(installed);
+    } catch {
+      // ignore refresh errors; each mutation reports its own failures
+    }
   }, [id]);
 
   React.useEffect(() => {
@@ -114,16 +119,23 @@ export function ProjectDetailPage() {
   async function batchInstall() {
     if (!id) return;
     const slugs = [...selected].filter((slug) => statusFor(slug) === null);
+    setBatching(true);
+    let failures = 0;
     for (const slug of slugs) {
       try {
         await installSkill(slug, id, agent);
       } catch {
-        // continue; individual failures are surfaced by the final refresh
+        failures += 1;
       }
     }
     setSelected(new Set());
     await refreshInstalled();
-    toast({ title: `Installed ${slugs.length} skill(s)` });
+    setBatching(false);
+    toast({ title: `Installed ${slugs.length - failures} of ${slugs.length} skill(s)` });
+  }
+
+  if (loading && !project) {
+    return <p className="text-sm text-muted-foreground">Loading…</p>;
   }
 
   if (!project) {
@@ -167,12 +179,17 @@ export function ProjectDetailPage() {
 
       <div className="flex flex-wrap items-center gap-2">
         <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search skills…" className="md:max-w-xs" />
-        <div className="inline-flex rounded-lg border border-border/60 p-0.5">
+        <div role="group" aria-label="Target agent" className="inline-flex rounded-lg border border-border/60 p-0.5">
           {AGENTS.map((a) => (
             <button
               key={a.id}
               type="button"
-              onClick={() => setAgent(a.id)}
+              role="radio"
+              aria-checked={agent === a.id}
+              onClick={() => {
+                setAgent(a.id);
+                setSelected(new Set());
+              }}
               className={`rounded-md px-3 py-1.5 text-xs font-medium ${
                 agent === a.id ? "bg-primary text-primary-foreground" : "text-muted-foreground"
               }`}
@@ -182,7 +199,7 @@ export function ProjectDetailPage() {
           ))}
         </div>
         {selectableSelected.length > 0 ? (
-          <Button size="sm" className="ml-auto" onClick={batchInstall}>
+          <Button size="sm" className="ml-auto" disabled={batching} onClick={batchInstall}>
             Install selected ({selectableSelected.length})
           </Button>
         ) : null}
@@ -195,7 +212,7 @@ export function ProjectDetailPage() {
             skill={s}
             status={statusFor(s.slug)}
             selected={selected.has(s.slug)}
-            busy={busy === s.slug}
+            busy={busy === s.slug || batching}
             onToggleSelect={() => toggleSelect(s.slug)}
             onInstall={() => doInstall(s.slug)}
             onUpdate={() => doUpdate(s.slug)}

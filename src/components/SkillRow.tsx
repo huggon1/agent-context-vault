@@ -33,7 +33,7 @@ export function SkillRow({
   onUninstall,
 }: Props) {
   const actions = actionsForStatus(status);
-  const highlight = status === "drift" || status === "conflict";
+  const highlight = status === "drift" || status === "conflict" || status === "unknown";
 
   return (
     <div
