@@ -1,5 +1,5 @@
 import * as React from "react";
-import { X, Pencil } from "lucide-react";
+import { X, Pencil, Trash2 } from "lucide-react";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { MarkdownRenderer } from "./MarkdownRenderer";
@@ -7,11 +7,12 @@ import { CopyButton } from "./CopyButton";
 import { formatDate, formatRelative } from "../lib/time";
 import { useToast } from "./ui/toast";
 import { useLibrary } from "../context/LibraryContext";
-import { useTargetPath } from "../context/TargetPathContext";
-import { fetchAssetRaw, saveAsset, renameSkill } from "../api/client";
+import { useProjects } from "../context/ProjectsContext";
+import { fetchAssetRaw, saveAsset, renameSkill, deleteSkill, fetchSkillInstalls } from "../api/client";
 import { PromptEditor } from "./PromptEditor";
 import { parsePromptRaw, assemblePrompt, isValidSlug } from "../lib/parseAsset";
 import type { PromptFields } from "../lib/parseAsset";
+import type { SkillInstall } from "../lib/types";
 
 interface Props {
   open: boolean;
@@ -40,10 +41,12 @@ export function DetailDrawer({
 }: Props) {
   const { toast } = useToast();
   const { refresh } = useLibrary();
-  const { currentPath } = useTargetPath();
+  const { projects } = useProjects();
   const [editFields, setEditFields] = React.useState<PromptFields | null>(null);
   const [renameValue, setRenameValue] = React.useState<string | null>(null);
   const [saving, setSaving] = React.useState(false);
+  const [installs, setInstalls] = React.useState<SkillInstall[] | null>(null);
+  const [deleting, setDeleting] = React.useState(false);
 
   const editingPrompt = editFields !== null;
   const renaming = renameValue !== null;
@@ -67,6 +70,15 @@ export function DetailDrawer({
       setRenameValue(null);
     }
   }, [open, slug]);
+
+  React.useEffect(() => {
+    if (open && assetType === "skill" && slug) {
+      setInstalls(null);
+      fetchSkillInstalls(slug)
+        .then(({ installs }) => setInstalls(installs))
+        .catch(() => setInstalls([]));
+    }
+  }, [open, assetType, slug]);
 
   async function handleEditPrompt() {
     try {
@@ -105,7 +117,7 @@ export function DetailDrawer({
     }
     setSaving(true);
     try {
-      await renameSkill(slug, newSlug, currentPath || "");
+      await renameSkill(slug, newSlug);
       await refresh();
       setRenameValue(null);
       toast({ title: `Renamed to ${newSlug}` });
@@ -122,6 +134,43 @@ export function DetailDrawer({
       }
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function handleDelete() {
+    if (
+      !window.confirm(
+        `Delete skill "${title}" from the vault? This removes the source; installed copies are left in place.`,
+      )
+    ) {
+      return;
+    }
+    setDeleting(true);
+    try {
+      let res = await deleteSkill(slug);
+      if (!res.ok && res.error === "installed") {
+        const n = res.installs?.length ?? 0;
+        if (
+          !window.confirm(
+            `"${slug}" is installed in ${n} place(s). Delete the source anyway? Installed copies remain.`,
+          )
+        ) {
+          setDeleting(false);
+          return;
+        }
+        res = await deleteSkill(slug, true);
+      }
+      if (!res.ok) {
+        toast({ title: "Delete failed", description: res.error ?? "Unknown error" });
+        return;
+      }
+      await refresh();
+      toast({ title: `Deleted ${slug}` });
+      onClose();
+    } catch (err) {
+      toast({ title: "Delete failed", description: err instanceof Error ? err.message : String(err) });
+    } finally {
+      setDeleting(false);
     }
   }
 
@@ -161,6 +210,19 @@ export function DetailDrawer({
                   title="Rename skill"
                 >
                   <Pencil className="h-4 w-4" />
+                </Button>
+              )}
+              {!renaming && (
+                <Button
+                  type="button"
+                  size="icon"
+                  variant="ghost"
+                  onClick={handleDelete}
+                  disabled={deleting}
+                  aria-label="Delete skill"
+                  title="Delete skill"
+                >
+                  <Trash2 className="h-4 w-4" />
                 </Button>
               )}
               <Button type="button" size="icon" variant="ghost" onClick={onClose} aria-label="Close">
@@ -222,6 +284,33 @@ export function DetailDrawer({
             </div>
             {renameInvalid && (
               <p className="text-xs text-red-500">Slug must be lowercase letters, digits, and hyphens.</p>
+            )}
+          </div>
+        ) : null}
+
+        {isSkill && !renaming ? (
+          <div className="relative border-b border-border/60 bg-muted/20 px-6 py-2.5 text-xs">
+            {installs === null ? (
+              <span className="text-muted-foreground">Checking installs…</span>
+            ) : installs.length === 0 ? (
+              <span className="text-muted-foreground">Not installed in any project.</span>
+            ) : (
+              <div className="flex flex-col gap-1.5">
+                <span className="text-muted-foreground">Installed in {installs.length} place(s):</span>
+                <div className="flex flex-wrap gap-1.5">
+                  {installs.map((i) => {
+                    const name = projects.find((p) => p.id === i.projectId)?.name ?? i.projectId;
+                    return (
+                      <span
+                        key={`${i.projectId}:${i.agent}`}
+                        className="rounded-full border border-border/60 px-2 py-0.5"
+                      >
+                        {name} · {i.agent === "claude-code" ? ".claude" : ".codex"} · {i.status}
+                      </span>
+                    );
+                  })}
+                </div>
+              </div>
             )}
           </div>
         ) : null}

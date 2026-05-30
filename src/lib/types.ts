@@ -23,13 +23,28 @@ export interface Library {
 
 export type InstallAgent = "claude-code" | "codex";
 
+export type InstallStatus =
+  | "synced"
+  | "source-updated"
+  | "drift"
+  | "conflict"
+  | "unknown";
+
 export interface InstalledEntry {
   slug: string;
   agent: InstallAgent;
-  modified: boolean;
+  status: InstallStatus;
 }
 
-export interface AgentVaultConfig {
-  currentPath: string;
-  recentPaths: string[];
+export interface SkillInstall {
+  projectId: string;
+  agent: InstallAgent;
+  status: InstallStatus;
+}
+
+export interface Project {
+  id: string;
+  path: string;
+  name: string;
+  createdAt: string;
 }
