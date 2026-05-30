@@ -51,8 +51,8 @@ export async function listInstalled(projectId, projectPath) {
       slugs = [];
     }
     const sources = new Set(
-      await fs.readdir(skillsDir()).then(
-        (xs) => xs,
+      await fs.readdir(skillsDir(), { withFileTypes: true }).then(
+        (entries) => entries.filter((e) => e.isDirectory()).map((e) => e.name),
         () => [],
       ),
     );
