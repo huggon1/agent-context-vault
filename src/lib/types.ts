@@ -36,6 +36,12 @@ export interface InstalledEntry {
   status: InstallStatus;
 }
 
+export interface SkillInstall {
+  projectId: string;
+  agent: InstallAgent;
+  status: InstallStatus;
+}
+
 export interface Project {
   id: string;
   path: string;

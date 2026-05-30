@@ -1,4 +1,4 @@
-import type { InstallAgent, InstalledEntry, Library, Project } from "../lib/types";
+import type { InstallAgent, InstalledEntry, Library, Project, SkillInstall } from "../lib/types";
 
 const BASE = "";
 
@@ -96,4 +96,23 @@ export function importSkill(url: string, force = false) {
     method: "POST",
     body: JSON.stringify({ url, force }),
   });
+}
+
+export async function deleteSkill(slug: string, force = false) {
+  const res = await fetch("/api/skill", {
+    method: "DELETE",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ slug, force }),
+  });
+  const data = (await res.json().catch(() => ({}))) as {
+    error?: string;
+    installs?: SkillInstall[];
+  };
+  return { ok: res.ok, error: data.error, installs: data.installs };
+}
+
+export function fetchSkillInstalls(slug: string) {
+  return request<{ installs: SkillInstall[] }>(
+    `/api/skill/installs?slug=${encodeURIComponent(slug)}`,
+  );
 }
