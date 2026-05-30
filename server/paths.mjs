@@ -9,7 +9,6 @@ export const VAULT_DIR = path.join(ROOT, 'vault');
 export function skillsDir() {
   return process.env.AGENT_VAULT_SKILLS_DIR || path.join(VAULT_DIR, 'skills');
 }
-export const SKILLS_DIR = skillsDir();
 export const PROMPTS_DIR = path.join(VAULT_DIR, 'prompts');
 
 export function agentVaultHome() {

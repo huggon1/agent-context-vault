@@ -45,3 +45,12 @@ export async function removeProjectBaselines(projectId) {
   }
   await save(m);
 }
+
+export async function removeSlugBaselines(slug) {
+  const m = await load();
+  for (const k of Object.keys(m)) {
+    // key is `${projectId}:${slug}:${agent}`; projectId/agent contain no ':'
+    if (k.split(':')[1] === slug) delete m[k];
+  }
+  await save(m);
+}

@@ -67,6 +67,16 @@ describe('skills operations', () => {
     expect(res.ok).toBe(true);
   });
 
+  it('force-delete clears the skill\'s baselines', async () => {
+    await makeSourceSkill('zap');
+    await installCopy('zap');
+    const p = await projects.addProject({ path: projectDir });
+    const manifest = await import(`./manifest.mjs?${Date.now()}`);
+    await manifest.setBaseline(p.id, 'zap', 'claude-code', 'H');
+    await skills.deleteSkill('zap', { force: true });
+    expect(await manifest.getBaseline(p.id, 'zap', 'claude-code')).toBe(null);
+  });
+
   it('reverse map finds installs across projects', async () => {
     await makeSourceSkill('qux');
     await installCopy('qux');

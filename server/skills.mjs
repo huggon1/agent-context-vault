@@ -4,6 +4,7 @@ import { skillsDir, AGENT_DIRS, skillTargetDir } from './paths.mjs';
 import { pathExists } from './fsutil.mjs';
 import { listProjects } from './projects.mjs';
 import { skillStatus } from './status.mjs';
+import { removeSlugBaselines } from './manifest.mjs';
 
 /** Find every registered project + agent where `slug` is installed. */
 export async function findInstallsOfSkill(slug) {
@@ -35,6 +36,7 @@ export async function deleteSkill(slug, { force = false } = {}) {
     return { ok: false, error: 'installed', installs };
   }
   await fs.rm(src, { recursive: true, force: true });
+  await removeSlugBaselines(slug);
   return { ok: true };
 }
 
