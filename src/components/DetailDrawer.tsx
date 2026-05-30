@@ -7,7 +7,6 @@ import { CopyButton } from "./CopyButton";
 import { formatDate, formatRelative } from "../lib/time";
 import { useToast } from "./ui/toast";
 import { useLibrary } from "../context/LibraryContext";
-import { useTargetPath } from "../context/TargetPathContext";
 import { fetchAssetRaw, saveAsset, renameSkill } from "../api/client";
 import { PromptEditor } from "./PromptEditor";
 import { parsePromptRaw, assemblePrompt, isValidSlug } from "../lib/parseAsset";
@@ -40,7 +39,6 @@ export function DetailDrawer({
 }: Props) {
   const { toast } = useToast();
   const { refresh } = useLibrary();
-  const { currentPath } = useTargetPath();
   const [editFields, setEditFields] = React.useState<PromptFields | null>(null);
   const [renameValue, setRenameValue] = React.useState<string | null>(null);
   const [saving, setSaving] = React.useState(false);
@@ -105,7 +103,7 @@ export function DetailDrawer({
     }
     setSaving(true);
     try {
-      await renameSkill(slug, newSlug, currentPath || "");
+      await renameSkill(slug, newSlug);
       await refresh();
       setRenameValue(null);
       toast({ title: `Renamed to ${newSlug}` });
